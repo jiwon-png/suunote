@@ -1,65 +1,93 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
     request,
   })
 
+  const { pathname } = request.nextUrl
+
+  // 환경 변수 확인
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const isMockMode = !supabaseUrl || !supabaseAnonKey
+
+  // Mock 모드: 환경 변수가 없으면 Supabase 클라이언트 생성 건너뛰기
+  // 루트 경로는 로그인 페이지로 리다이렉트
+  if (isMockMode) {
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    // 나머지 경로는 그대로 통과 (클라이언트에서 인증 체크)
+    return response
+  }
+
+  // 실제 모드: Supabase 클라이언트 생성 및 세션 관리
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+        setAll(
+          cookiesToSet: Array<{
+            name: string
+            value: string
+            options?: CookieOptions
+          }>
+        ): void {
+          cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({
+          })
+
+          response = NextResponse.next({
             request,
           })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
         },
       },
     }
   )
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
+  // 세션 확인
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  // 보호된 경로 목록 (로그인이 필요한 경로)
+  // /posts, /posts/new, /posts/[id] 등 모든 하위 경로 포함
+  // /dashboard, /courses 및 모든 하위 경로 포함
+  const protectedPaths = ['/posts', '/dashboard', '/courses']
+  const isProtectedPath = protectedPaths.some((path) =>
+    pathname.startsWith(path)
+  )
+
+  // 1. 루트 경로 처리: 항상 /login 또는 /posts로 리다이렉트
+  if (pathname === '/') {
+    if (user) {
+      return NextResponse.redirect(new URL('/posts', request.url))
+    } else {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
-  // creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely.
+  // 2. 보호된 경로 접근 시 인증 체크
+  if (isProtectedPath && !user) {
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
 
-  return supabaseResponse
+  // 3. 로그인 페이지 접근: 자동 리다이렉트 제거
+  // 사용자가 명시적으로 /login에 접근할 수 있도록 허용
+  // (예: 로그아웃 후 다시 로그인하려는 경우)
+  // 자동 리다이렉트는 제거하고, 사용자가 로그인 버튼을 클릭할 때만 이동
+
+  return response
 }

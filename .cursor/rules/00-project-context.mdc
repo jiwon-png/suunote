@@ -22,3 +22,16 @@ Primary Goal (Phase 1):
 Whenever generating or modifying code:
 - Always prioritize **flow integrity** over feature richness
 - Always assume Phase 2 extensibility, but NEVER implement Phase 2 logic directly
+
+## Project Structure & Exclusions
+
+**Important: `tmp-v0/` folder exclusion**
+- The `tmp-v0/` folder contains backup/reference source code and is **NOT part of the build or functionality**
+- This folder is excluded from:
+  - TypeScript compilation (`tsconfig.json`)
+  - Next.js build process (`next.config.ts`)
+  - Git tracking (`.gitignore`)
+  - All development and build workflows
+- **NEVER** import or reference files from `tmp-v0/` in production code
+- **NEVER** include `tmp-v0/` in build outputs or deployment
+- When working on features, ignore `tmp-v0/` completely - it's for reference only

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Backup/reference folder - not part of build or functionality
+    "tmp-v0/**",
   ]),
 ]);
 
