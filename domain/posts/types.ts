@@ -1,3 +1,5 @@
+import { AIResult } from '@/domain/ai/types'
+
 export interface Post {
   id: string
   userId: string
@@ -7,6 +9,11 @@ export interface Post {
   content: string
   combinedContent?: string
   aiProcessed: boolean
+  aiResult?: {
+    summary?: string
+    keyPoints?: string[]
+    studyDirection?: string
+  }
   createdAt: Date
   updatedAt: Date
 }

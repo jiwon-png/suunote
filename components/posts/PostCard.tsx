@@ -22,27 +22,27 @@ export default function PostCard({ post }: PostCardProps) {
 
   return (
     <Link href={`/posts/${post.id}`}>
-      <Card className="group flex items-center justify-between p-4 transition-all hover:border-primary/30 hover:shadow-sm">
+      <Card className="group flex items-center justify-between px-4 py-2.5 transition-all hover:border-primary/30 hover:shadow-sm">
         <div className="min-w-0 flex-1 space-y-1">
-          <h3 className="truncate font-medium text-card-foreground group-hover:text-primary">
+          <h3 className="line-clamp-1 text-[15px] font-semibold leading-tight text-card-foreground group-hover:text-primary">
             {displayTitle}
           </h3>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 text-xs leading-tight text-muted-foreground">
             <span>{formatDate(post.createdAt)}</span>
             {post.aiProcessed ? (
               <span className="flex items-center gap-1 text-primary">
-                <CheckCircle className="h-3.5 w-3.5" />
+                <CheckCircle className="h-3 w-3" />
                 AI 요약 완료
               </span>
             ) : (
               <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
+                <Clock className="h-3 w-3" />
                 처리 중
               </span>
             )}
           </div>
         </div>
-        <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 ml-3" />
       </Card>
     </Link>
   )
