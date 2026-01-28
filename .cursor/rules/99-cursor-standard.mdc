@@ -1,0 +1,27 @@
+---
+alwaysApply: true
+---
+
+# Cursor Standard Rules (Project-Adapted)
+
+## Code Generation Discipline
+
+- Prefer clarity over cleverness
+- Avoid speculative abstractions
+- Do not introduce libraries unless required
+
+## File & Folder Hygiene
+
+- Follow App Router conventions strictly
+- No mixed concerns in single file
+- Components must reflect PRD naming
+
+## Change Policy
+
+When modifying code:
+1. Identify which PRD section it belongs to
+2. Confirm Phase 1 or Phase 2
+3. If unclear → do NOT implement
+
+Cursor should ask for clarification instead of guessing
+when PRD alignment is uncertain.

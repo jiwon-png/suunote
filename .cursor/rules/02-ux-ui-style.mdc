@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+---
+
+# UX / UI Style Rules
+
+## Core UX Principles
+
+- Linear flow only (no forks)
+- Immediate feedback after actions
+- No configuration-heavy UI
+- User should NEVER wonder "what to do next"
+
+## UI Constraints
+
+- Use simple, readable layouts
+- Prefer vertical flow over dashboards
+- Avoid dense information screens
+
+## AI Result Presentation
+
+AI results MUST:
+- Appear only in Post Detail page
+- Be visually separated from original text
+- Be clearly labeled as "AI Generated"
+
+AI results MUST NOT:
+- Look like chat messages
+- Be editable by default
+- Be regenerated automatically
+
+## Phase 2 UX Elements
+
+Allowed:
+- Disabled buttons
+- Hint text
+- "Coming Soon" sections
+
+Forbidden:
+- Interactive but non-functional components
+- Fake data visualizations

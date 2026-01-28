@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+---
+
+# AI & Data Handling Rules
+
+## AI Role Definition
+
+AI is:
+- A background processor
+- A value generator for learning reuse
+
+AI is NOT:
+- A chat partner
+- A real-time assistant
+
+## AI Execution Rules
+
+- AI runs AFTER post creation
+- AI runs ONCE per post (Phase 1)
+- AI results are stored and reused
+
+## Data Shape Enforcement
+
+AIResult MUST contain:
+- summary
+- keyPoints
+- studyDirection
+
+No additional fields without PRD update.

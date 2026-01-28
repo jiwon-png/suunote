@@ -1,0 +1,24 @@
+---
+alwaysApply: true
+---
+
+# Project Context — SSU-Note
+
+This project is **SSU-Note (Smart Study University Note)**.
+
+SSU-Note is NOT:
+- a generic note-taking app
+- a chat-based AI playground
+- a feature-rich LMS
+
+SSU-Note IS:
+- an MVP to validate whether **AI can function as a persistent component inside a learning flow**
+- a system where **input → AI processing → storage → re-usage** must always be preserved
+
+Primary Goal (Phase 1):
+- Verify that AI-generated learning value can be saved, revisited, and reused
+- Maintain a single, linear learning flow without branching complexity
+
+Whenever generating or modifying code:
+- Always prioritize **flow integrity** over feature richness
+- Always assume Phase 2 extensibility, but NEVER implement Phase 2 logic directly

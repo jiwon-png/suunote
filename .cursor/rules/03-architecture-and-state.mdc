@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+---
+
+# Architecture & State Rules
+
+## Framework
+
+- Next.js App Router
+- Client Components for interaction
+- No premature Server Actions
+
+## State Management
+
+Phase 1 state MUST use:
+- PostsContext (StudyPost + AIResult)
+- AppContext (subjects, courses, quiz cache)
+
+Rules:
+- No direct cross-context mutation
+- No global singleton state
+- Context = in-memory ONLY
+
+## Data Flow
+
+UI → Context → UI
+
+Forbidden:
+- UI directly calling AI logic without Context
+- AI writing directly into UI state

@@ -1,0 +1,50 @@
+---
+alwaysApply: true
+---
+
+# PRD & FLOW Enforcement Rules
+
+All implementations MUST strictly follow:
+- PRD.md (Phase 1 scope first)
+- FLOW.md (defined user & data flow)
+
+## 1. Page Flow (Non-negotiable)
+
+Allowed navigation order:
+Login (/)  
+→ Post List (/posts)  
+→ Post Create (/posts/new)  
+→ Post Detail (/posts/:id)  
+→ Back to List
+
+Forbidden:
+- Skipping steps
+- Multi-branch flows
+- AI result shown outside Post Detail page
+
+## 2. Study Post Lifecycle
+
+A Study Post MUST:
+1. Be created BEFORE AI processing
+2. Exist independently of AI results
+3. Store AI results only AFTER AI processing completes
+
+AI result MUST NEVER:
+- Exist without a StudyPost
+- Be generated on list page
+- Be recalculated automatically on view
+
+## 3. Phase Boundary Rules
+
+Phase 1:
+- In-memory Context state ONLY
+- Mock AI, Mock OCR/STT allowed
+- No real Supabase persistence
+
+Phase 2:
+- Mentioned ONLY as future hints (comments / TODO)
+- NEVER partially implemented
+
+If a feature belongs to Phase 2:
+→ show UX hint or placeholder
+→ do NOT implement logic
