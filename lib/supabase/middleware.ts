@@ -55,6 +55,11 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // OAuth 콜백 경로는 인증 체크에서 제외 (세션 설정 중이므로)
+  if (pathname === '/callback' || pathname.startsWith('/callback')) {
+    return response
+  }
+
   // 세션 확인
   const {
     data: { user },

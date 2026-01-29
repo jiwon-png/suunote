@@ -82,7 +82,8 @@ export async function signInWithGoogle(
     // 실제 Supabase OAuth 로그인
     const supabase = createClient()
     const redirectTo = options?.redirectTo || '/posts'
-    const callbackUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`
+    // Route group (auth)는 URL에 포함되지 않으므로 /callback이 실제 경로입니다
+    const callbackUrl = `${window.location.origin}/callback?redirect=${encodeURIComponent(redirectTo)}`
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
