@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { GraduationCap, BookOpen, ChevronRight } from "lucide-react"
@@ -15,7 +16,7 @@ function formatDate(date: Date): string {
   }).format(date)
 }
 
-export default function CoursesPage() {
+function CoursesPageContent() {
   const searchParams = useSearchParams()
   const { courses, subjects, getSubject } = useAppContext()
   const { posts } = usePostsContext()
@@ -114,5 +115,24 @@ export default function CoursesPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function CoursesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-4xl px-4">
+          <div className="border-b border-border py-5">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold text-foreground">코스</h1>
+              <p className="text-sm text-muted-foreground">로딩 중...</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <CoursesPageContent />
+    </Suspense>
   )
 }

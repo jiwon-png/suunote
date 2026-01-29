@@ -1,4 +1,7 @@
 import { createClient, isMockMode } from '@/lib/supabase/client'
+import { profileRowToDomain } from '@/lib/utils/types'
+import { getErrorMessage, logError } from '@/lib/utils/errors'
+import type { Database } from '@/types/database'
 
 export interface SignInOptions {
   redirectTo?: string
@@ -8,6 +11,41 @@ export interface SignInResult {
   success: boolean
   error?: Error | null
   isMock?: boolean
+}
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row']
+
+/**
+ * OAuth 에러 코드를 사용자 친화적 메시지로 변환
+ */
+function getOAuthErrorMessage(error: unknown): string {
+  if (!error) return '로그인 중 오류가 발생했습니다.'
+
+  if (typeof error === 'object' && 'message' in error) {
+    const message = String(error.message).toLowerCase()
+
+    // OAuth 취소
+    if (message.includes('access_denied') || message.includes('user_cancelled')) {
+      return '로그인이 취소되었습니다.'
+    }
+
+    // 네트워크 오류
+    if (message.includes('network') || message.includes('fetch')) {
+      return '네트워크 연결을 확인해주세요.'
+    }
+
+    // 인증 설정 오류
+    if (message.includes('invalid_client') || message.includes('unauthorized')) {
+      return '인증 설정에 문제가 있습니다. 관리자에게 문의해주세요.'
+    }
+
+    // 기타 OAuth 오류
+    if (message.includes('oauth') || message.includes('auth')) {
+      return '인증 중 오류가 발생했습니다. 다시 시도해주세요.'
+    }
+  }
+
+  return '로그인 중 알 수 없는 오류가 발생했습니다.'
 }
 
 /**
@@ -56,7 +94,7 @@ export async function signInWithGoogle(
     if (error) {
       return {
         success: false,
-        error: error as Error,
+        error: new Error(getOAuthErrorMessage(error)),
       }
     }
 
@@ -67,10 +105,7 @@ export async function signInWithGoogle(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error
-          : new Error('로그인 중 알 수 없는 오류가 발생했습니다.'),
+      error: new Error(getOAuthErrorMessage(error)),
     }
   }
 }
@@ -123,9 +158,61 @@ export async function getCurrentUser() {
   }
 }
 
+/**
+ * 사용자 프로필을 가져옵니다.
+ * @param userId 사용자 ID
+ * @returns 프로필 정보 또는 null
+ */
+export async function getProfile(userId: string) {
+  try {
+    // Mock 모드: Mock 프로필 반환
+    if (isMockMode()) {
+      return {
+        profile: {
+          id: 'mock-user-id',
+          email: 'mock@example.com',
+          fullName: 'Mock User',
+          avatarUrl: undefined,
+          role: 'user' as const,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        error: null,
+      }
+    }
+
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      return { profile: null, error: error as Error }
+    }
+
+    if (!data) {
+      return { profile: null, error: null }
+    }
+
+    return {
+      profile: profileRowToDomain(data as ProfileRow),
+      error: null,
+    }
+  } catch (error) {
+    logError(error, 'getProfile')
+    return {
+      profile: null,
+      error: new Error(getErrorMessage(error)),
+    }
+  }
+}
+
 // Legacy authService 객체 (하위 호환성)
 export const authService = {
   signIn: signInWithGoogle,
   signOut,
   getCurrentUser,
+  getProfile,
 }

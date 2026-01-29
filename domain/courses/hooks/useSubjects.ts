@@ -2,29 +2,30 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthContext } from '@/contexts/AuthContext'
-import { getCourses, type CourseWithSubject } from '@/domain/courses/services/courseService'
+import { getSubjects } from '@/domain/courses/services/subjectService'
+import type { Subject } from '@/domain/courses/types'
 
-interface UseCoursesReturn {
-  courses: CourseWithSubject[]
+interface UseSubjectsReturn {
+  subjects: Subject[]
   isLoading: boolean
   error: Error | null
   refetch: () => Promise<void>
 }
 
 /**
- * Courses 데이터를 페칭하고 관리하는 훅
+ * Subjects 데이터를 페칭하고 관리하는 훅
  * 
- * @returns Courses 배열, 로딩 상태, 에러 상태, refetch 함수
+ * @returns Subjects 배열, 로딩 상태, 에러 상태, refetch 함수
  */
-export function useCourses(): UseCoursesReturn {
+export function useSubjects(): UseSubjectsReturn {
   const { user } = useAuthContext()
-  const [courses, setCourses] = useState<CourseWithSubject[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const fetchCourses = useCallback(async () => {
+  const fetchSubjects = useCallback(async () => {
     if (!user) {
-      setCourses([])
+      setSubjects([])
       setIsLoading(false)
       return
     }
@@ -33,31 +34,31 @@ export function useCourses(): UseCoursesReturn {
     setError(null)
 
     try {
-      const { data, error: fetchError } = await getCourses(user.id)
+      const { data, error: fetchError } = await getSubjects(user.id)
 
       if (fetchError) {
         setError(fetchError)
-        setCourses([])
+        setSubjects([])
       } else {
-        setCourses(data ?? [])
+        setSubjects(data ?? [])
         setError(null)
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('알 수 없는 오류가 발생했습니다.'))
-      setCourses([])
+      setSubjects([])
     } finally {
       setIsLoading(false)
     }
   }, [user?.id])
 
   useEffect(() => {
-    fetchCourses()
-  }, [fetchCourses])
+    fetchSubjects()
+  }, [fetchSubjects])
 
   return {
-    courses,
+    subjects,
     isLoading,
     error,
-    refetch: fetchCourses,
+    refetch: fetchSubjects,
   }
 }

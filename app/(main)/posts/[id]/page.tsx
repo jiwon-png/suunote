@@ -12,8 +12,20 @@ import {
   ListChecks,
   Compass,
   RotateCcw,
+  Loader2,
+  Edit,
+  Save,
+  X,
+  FileText,
+  Image,
+  Mic,
+  Video,
+  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +38,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { usePost } from "@/domain/posts/hooks/usePost"
+import { deletePost, updatePost } from "@/domain/posts/services/postService"
+import { useAuthContext } from "@/contexts/AuthContext"
 import { usePostsContext } from "@/contexts/PostsContext"
+import { PostDetailSkeleton } from "@/components/common/SkeletonLoader"
+import ErrorDisplay from "@/components/common/ErrorDisplay"
+import { validatePostTitle, validatePostContent } from "@/lib/utils/validation"
+import { formatFileSize } from "@/lib/utils/file"
 
 function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -44,39 +63,170 @@ export default function PostDetailPage({
   params: { id: string }
 }) {
   const router = useRouter()
-  const { posts, deletePost } = usePostsContext()
+  const { user } = useAuthContext()
+  const { refetch: refetchPosts, updatePost: updatePostInContext, deletePost: deletePostInContext } = usePostsContext()
+  const { post, isLoading, error, refetch } = usePost(params.id)
   const [isContentExpanded, setIsContentExpanded] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState("")
+  const [editContent, setEditContent] = useState("")
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [updateError, setUpdateError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const post = posts.find((p) => p.id === params.id)
-
-  // Mock 데이터가 없어도 기본 UI 구조를 유지하도록 fallback 처리
-  const displayPost = post || {
-    id: params.id,
-    userId: 'mock-user',
-    title: '샘플 학습 노트',
-    content: '이것은 샘플 학습 노트입니다. 실제 데이터가 로드되면 이 내용이 대체됩니다.',
-    aiProcessed: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    aiResult: {
-      summary: '이것은 샘플 AI 요약입니다.',
-      keyPoints: [
-        '샘플 핵심 포인트 1',
-        '샘플 핵심 포인트 2',
-        '샘플 핵심 포인트 3',
-      ],
-      studyDirection: '이것은 샘플 학습 방향 제안입니다.',
-    },
-  }
-
-  const handleDelete = () => {
+  // 수정 모드 진입
+  const handleEdit = () => {
     if (post) {
-      deletePost(post.id)
-      router.push("/posts")
-    } else {
-      router.push("/posts")
+      setEditTitle(post.title)
+      setEditContent(post.content)
+      setIsEditing(true)
+      setUpdateError(null)
     }
   }
+
+  // 수정 취소
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setEditTitle("")
+    setEditContent("")
+    setUpdateError(null)
+  }
+
+  // 수정 저장
+  const handleSaveEdit = async () => {
+    if (!post || !user) return
+
+    // 유효성 검증
+    const titleValidation = validatePostTitle(editTitle)
+    const contentValidation = validatePostContent(editContent)
+
+    if (!titleValidation.valid) {
+      setUpdateError(titleValidation.error || "제목을 입력해주세요.")
+      return
+    }
+
+    if (!contentValidation.valid) {
+      setUpdateError(contentValidation.error || "내용을 입력해주세요.")
+      return
+    }
+
+    setIsUpdating(true)
+    setUpdateError(null)
+
+    // 낙관적 업데이트: 즉시 Context에 업데이트 반영
+    const optimisticResult = await updatePostInContext(post.id, {
+      title: editTitle.trim(),
+      content: editContent.trim(),
+    })
+
+    try {
+      const { data: updatedPost, error: updateError } = await updatePost(post.id, user.id, {
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      })
+
+      if (updateError) {
+        // API 호출 실패: 롤백
+        if (optimisticResult.rollback) {
+          optimisticResult.rollback()
+        }
+        setUpdateError(updateError.message || "수정에 실패했습니다.")
+        return
+      }
+
+      if (!updatedPost) {
+        // API 호출 실패: 롤백
+        if (optimisticResult.rollback) {
+          optimisticResult.rollback()
+        }
+        setUpdateError("수정에 실패했습니다.")
+        return
+      }
+
+      // 수정 모드 종료
+      setIsEditing(false)
+      
+      // 데이터 새로고침 (낙관적 업데이트로 이미 반영되었지만 서버 데이터로 동기화)
+      await refetch()
+      await refetchPosts()
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.")
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!post || !user) return
+
+    setIsDeleting(true)
+    
+    // 낙관적 업데이트: 즉시 Context에서 삭제 반영
+    const optimisticResult = await deletePostInContext(post.id)
+    
+    try {
+      const { error: deleteError } = await deletePost(post.id, user.id)
+
+      if (deleteError) {
+        // API 호출 실패: 롤백
+        if (optimisticResult.rollback) {
+          optimisticResult.rollback()
+        }
+        setDeleteError(deleteError.message || "삭제에 실패했습니다.")
+        setIsDeleting(false)
+        return
+      }
+
+      // 목록 페이지로 리다이렉트 (낙관적 업데이트로 이미 목록에서 제거됨)
+      router.push("/posts")
+    } catch (err) {
+      // 예외 발생: 롤백
+      if (optimisticResult.rollback) {
+        optimisticResult.rollback()
+      }
+      setDeleteError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // 로딩 상태 - 스켈레톤 UI 표시
+  if (isLoading) {
+    return (
+      <div className="mx-auto w-full max-w-4xl px-4">
+        <PostDetailSkeleton />
+      </div>
+    )
+  }
+
+  // 에러 상태
+  if (error) {
+    return (
+      <div className="mx-auto w-full max-w-4xl px-4">
+        <ErrorDisplay error={error} showHomeButton={false} />
+      </div>
+    )
+  }
+
+  // Post가 없는 경우 (404)
+  if (!post) {
+    return (
+      <div className="mx-auto w-full max-w-4xl px-4">
+        <div className="py-12 text-center">
+          <h2 className="text-xl font-semibold mb-2">학습 노트를 찾을 수 없습니다</h2>
+          <p className="text-muted-foreground mb-4">
+            요청하신 학습 노트가 존재하지 않거나 삭제되었습니다.
+          </p>
+          <Button asChild>
+            <Link href="/posts">목록으로 돌아가기</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const displayPost = post
 
   // 원본 학습 내용은 접기/펼치기로 전체 내용을 표시
 
@@ -95,55 +245,154 @@ export default function PostDetailPage({
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-xl font-bold leading-tight text-foreground">
-                {displayPost.title}
-              </h1>
+              {isEditing ? (
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="text-xl font-bold"
+                  disabled={isUpdating}
+                />
+              ) : (
+                <h1 className="text-xl font-bold leading-tight text-foreground">
+                  {displayPost.title}
+                </h1>
+              )}
             </div>
             <div className="pl-10 text-sm text-muted-foreground">
               <span>{formatDateTime(displayPost.createdAt)}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Button variant="outline" size="sm" disabled className="h-8 text-xs">
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-              복습하기
-            </Button>
-            {post && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs text-destructive hover:text-destructive">
-                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                    삭제
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>학습 노트 삭제</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      이 학습 노트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>취소</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      삭제
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+            {isEditing ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelEdit}
+                  disabled={isUpdating}
+                  className="h-8 text-xs"
+                >
+                  <X className="h-3.5 w-3.5 mr-1.5" />
+                  취소
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  disabled={isUpdating}
+                  className="h-8 text-xs"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-3.5 w-3.5 mr-1.5" />
+                      저장
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  className="h-8 text-xs"
+                >
+                  <Edit className="h-3.5 w-3.5 mr-1.5" />
+                  수정
+                </Button>
+                <Button variant="outline" size="sm" disabled className="h-8 text-xs">
+                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                  복습하기
+                </Button>
+              </>
             )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 text-xs text-destructive hover:text-destructive"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      삭제 중...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      삭제
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>학습 노트 삭제</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    이 학습 노트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDelete} 
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        삭제 중...
+                      </>
+                    ) : (
+                      '삭제'
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>
 
       {/* 본문 */}
       <div className="py-5 space-y-5">
+        {/* 수정 에러 메시지 */}
+        {updateError && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {updateError}
+          </div>
+        )}
+
+        {/* 삭제 에러 메시지 */}
+        {deleteError && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {deleteError}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDeleteError(null)}
+              className="ml-2 h-6 text-xs"
+            >
+              닫기
+            </Button>
+          </div>
+        )}
+
         {/* 원본 학습 내용 */}
         <Card>
           <CardHeader className="pb-2 px-4 pt-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold">원본 학습 내용</CardTitle>
-              {displayPost.content.length > 200 && (
+              {!isEditing && displayPost.content.length > 200 && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -165,14 +414,98 @@ export default function PostDetailPage({
               )}
             </div>
           </CardHeader>
-          {isContentExpanded && (
-            <CardContent className="px-4 pb-4 pt-0">
+          <CardContent className="px-4 pb-4 pt-0">
+            {isEditing ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-content">학습 내용</Label>
+                  <Textarea
+                    id="edit-content"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="min-h-[300px] resize-none"
+                    disabled={isUpdating}
+                  />
+                </div>
+              </div>
+            ) : (
               <p className="text-sm text-card-foreground leading-relaxed whitespace-pre-wrap">
                 {displayPost.content}
               </p>
-            </CardContent>
-          )}
+            )}
+          </CardContent>
         </Card>
+
+        {/* 첨부 파일 섹션 */}
+        {displayPost.attachments && displayPost.attachments.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3 px-4 pt-4">
+              <CardTitle className="text-base font-semibold">첨부 파일</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <div className="space-y-2">
+                {displayPost.attachments.map((attachment) => {
+                  const fileTypeIcons = {
+                    pdf: FileText,
+                    image: Image,
+                    audio: Mic,
+                    video: Video,
+                  }
+                  const fileTypeColors = {
+                    pdf: '#EF4444',
+                    image: '#3B82F6',
+                    audio: '#10B981',
+                    video: '#8B5CF6',
+                  }
+                  const Icon = fileTypeIcons[attachment.fileType]
+                  const color = fileTypeColors[attachment.fileType]
+
+                  return (
+                    <div
+                      key={attachment.id}
+                      className="flex items-center justify-between rounded-lg border border-border bg-card p-3"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div
+                          className="flex h-10 w-10 items-center justify-center rounded-lg flex-shrink-0"
+                          style={{ backgroundColor: `${color}20` }}
+                        >
+                          <Icon className="h-5 w-5" style={{ color }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-card-foreground truncate">
+                            {attachment.fileName}
+                          </p>
+                          {attachment.fileSize && (
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(attachment.fileSize)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="flex-shrink-0"
+                      >
+                        <a
+                          href={attachment.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={attachment.fileName}
+                        >
+                          <Download className="h-4 w-4 mr-1.5" />
+                          다운로드
+                        </a>
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* AI 결과 섹션 */}
         {displayPost.aiProcessed && displayPost.aiResult && (

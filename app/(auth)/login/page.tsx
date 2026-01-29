@@ -39,10 +39,23 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/posts'
   const [isLoading, setIsLoading] = useState(false)
+  // 에러 코드를 사용자 친화적 메시지로 변환
+  const getErrorMessage = (errorCode: string | null): string | null => {
+    if (!errorCode) return null
+
+    const errorMessages: Record<string, string> = {
+      user_cancelled: '로그인이 취소되었습니다.',
+      session_exchange_failed: '세션 생성에 실패했습니다. 다시 시도해주세요.',
+      missing_code: '인증 정보를 받지 못했습니다. 다시 시도해주세요.',
+      oauth_error: '인증 중 오류가 발생했습니다. 다시 시도해주세요.',
+      unexpected_error: '예상치 못한 오류가 발생했습니다. 다시 시도해주세요.',
+    }
+
+    return errorMessages[errorCode] || '로그인 중 오류가 발생했습니다. 다시 시도해주세요.'
+  }
+
   const [error, setError] = useState<string | null>(
-    searchParams.get('error')
-      ? '로그인 중 오류가 발생했습니다. 다시 시도해주세요.'
-      : null
+    getErrorMessage(searchParams.get('error'))
   )
 
   // 자동 리다이렉트 제거: 사용자가 명시적으로 로그인 버튼을 클릭할 때만 이동

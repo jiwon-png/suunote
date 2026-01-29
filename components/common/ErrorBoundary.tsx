@@ -2,10 +2,12 @@
 
 import { Component, ReactNode } from 'react'
 import ErrorDisplay from './ErrorDisplay'
+import { logError } from '@/lib/utils/errors'
 
 interface Props {
   children: ReactNode
   fallback?: ReactNode
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void
 }
 
 interface State {
@@ -24,9 +26,12 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // 개발 환경에서만 오류를 콘솔에 기록
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', error, errorInfo)
+    // 에러 로깅
+    logError(error, 'ErrorBoundary')
+    
+    // 커스텀 에러 핸들러 호출
+    if (this.props.onError) {
+      this.props.onError(error, errorInfo)
     }
   }
 
@@ -42,11 +47,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
       return (
         <ErrorDisplay
-          title="오류가 발생했습니다"
-          message={
-            this.state.error?.message ||
-            '예상치 못한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-          }
+          error={this.state.error}
           onReset={this.handleReset}
         />
       )

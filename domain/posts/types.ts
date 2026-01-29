@@ -17,6 +17,7 @@ export interface Post {
   updatedAt: Date
   // 관계 데이터 (JOIN 결과)
   aiResult?: AIResult
+  attachments?: PostAttachment[]
 }
 
 /**
