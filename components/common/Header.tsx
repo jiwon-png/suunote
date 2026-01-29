@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { BookOpen, LogOut, User, ChevronDown, GraduationCap } from "lucide-react"
 import {
@@ -24,9 +24,13 @@ import { useAuthContext } from "@/contexts/AuthContext"
 export default function Header() {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const isLoginPage = pathname === "/login"
-  const { subjects, selectedSubjectId, setSelectedSubjectId } = useAppContext()
+  const { subjects } = useAppContext()
   const { user, signOut } = useAuthContext()
+
+  // URL 쿼리 파라미터에서 과목 ID 가져오기
+  const selectedSubjectId = searchParams.get('subject') || undefined
 
   if (isLoginPage) return null
 
@@ -34,6 +38,16 @@ export default function Header() {
     await signOut()
     // 로그아웃 후 명시적으로 로그인 페이지로 이동
     router.push('/login')
+  }
+
+  const handleSubjectChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value === "all") {
+      params.delete('subject')
+    } else {
+      params.set('subject', value)
+    }
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   return (
@@ -49,14 +63,12 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Subject Selector */}
+          {/* Subject Selector - URL 쿼리 파라미터 기반 */}
           {subjects.length > 0 && (
             <div className="hidden sm:block">
               <Select
                 value={selectedSubjectId || "all"}
-                onValueChange={(value) =>
-                  setSelectedSubjectId(value === "all" ? undefined : value)
-                }
+                onValueChange={handleSubjectChange}
               >
                 <SelectTrigger className="h-9 w-[160px] border-border bg-secondary/50">
                   <div className="flex items-center gap-2">
@@ -110,7 +122,7 @@ export default function Header() {
               {subjects.length > 0 && (
                 <div className="sm:hidden">
                   <DropdownMenuItem
-                    onClick={() => setSelectedSubjectId(undefined)}
+                    onClick={() => handleSubjectChange("all")}
                     className={!selectedSubjectId ? "bg-secondary" : ""}
                   >
                     전체 과목
@@ -118,7 +130,7 @@ export default function Header() {
                   {subjects.map((subject) => (
                     <DropdownMenuItem
                       key={subject.id}
-                      onClick={() => setSelectedSubjectId(subject.id)}
+                      onClick={() => handleSubjectChange(subject.id)}
                       className={selectedSubjectId === subject.id ? "bg-secondary" : ""}
                     >
                       <div className="flex items-center gap-2">

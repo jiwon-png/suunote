@@ -37,11 +37,13 @@ const initialMockPosts: Post[] = [
   {
     ...createMockPost(
       'mock-post-1',
-      'React Hooks 심화 학습',
-      '오늘 React의 useState와 useEffect 훅에 대해 깊이 있게 학습했습니다. 상태 관리와 사이드 이펙트 처리 방법을 이해하는 것이 중요합니다. useState는 함수 컴포넌트에서 상태를 관리할 수 있게 해주는 기본 훅이며, useEffect는 컴포넌트의 생명주기와 연관된 사이드 이펙트를 처리하는 데 사용됩니다. 이 두 훅을 올바르게 사용하면 컴포넌트의 재사용성과 유지보수성을 크게 향상시킬 수 있습니다.',
+      '운영체제 프로세스 스케줄링',
+      '운영체제의 프로세스 스케줄링 알고리즘에 대해 학습했습니다. FCFS, SJF, Round Robin 등 다양한 스케줄링 알고리즘의 특징과 장단점을 이해했습니다. 각 알고리즘은 CPU 사용률, 응답 시간, 대기 시간 등 다양한 성능 지표에 영향을 미칩니다.',
       true,
       2
     ),
+    subjectId: 'os',
+    courseId: 'course-1',
     aiResult: {
       summary: 'React의 useState와 useEffect 훅은 함수 컴포넌트에서 상태 관리와 사이드 이펙트를 처리하는 핵심 도구입니다. useState는 컴포넌트 내부 상태를 선언적으로 관리하며, useEffect는 렌더링 후 실행되는 로직을 처리합니다. 이 두 훅을 올바르게 조합하면 재사용 가능하고 유지보수하기 쉬운 컴포넌트를 만들 수 있습니다.',
       keyPoints: [
@@ -56,11 +58,13 @@ const initialMockPosts: Post[] = [
   {
     ...createMockPost(
       'mock-post-2',
-      'Next.js App Router 구조',
-      'Next.js 15의 App Router를 활용한 프로젝트 구조를 설계했습니다. Server Components와 Client Components의 차이점을 명확히 이해했습니다. App Router는 파일 시스템 기반 라우팅을 제공하며, 레이아웃과 페이지를 중첩하여 구성할 수 있습니다. Server Components는 기본적으로 서버에서 렌더링되어 초기 번들 크기를 줄이고 성능을 향상시킵니다.',
+      '데이터베이스 정규화',
+      '데이터베이스 설계에서 정규화의 중요성과 각 정규화 단계의 목적에 대해 학습했습니다. 실무에서 적절한 정규화 수준을 선택하는 것이 핵심입니다. 1NF는 각 컬럼이 원자값을 가져야 하며, 2NF는 부분 함수 종속성을 제거하고, 3NF는 이행 종속성을 제거합니다.',
       true,
       5
     ),
+    subjectId: 'db',
+    courseId: 'course-2',
     aiResult: {
       summary: 'Next.js 15의 App Router는 파일 시스템 기반 라우팅을 제공하며, Server Components와 Client Components를 구분하여 사용합니다. Server Components는 서버에서 렌더링되어 성능을 향상시키고, Client Components는 상호작용이 필요한 부분에만 사용합니다.',
       keyPoints: [
@@ -75,20 +79,23 @@ const initialMockPosts: Post[] = [
   {
     ...createMockPost(
       'mock-post-3',
-      'TypeScript 제네릭 활용',
-      'TypeScript의 제네릭을 활용하여 재사용 가능한 타입을 정의하는 방법을 학습했습니다. 다양한 케이스에 적용할 수 있는 유연한 타입 설계가 중요합니다.',
+      '알고리즘 시간 복잡도 분석',
+      '알고리즘의 시간 복잡도를 분석하는 방법을 학습했습니다. Big-O 표기법을 사용하여 알고리즘의 성능을 평가하고, 최선/평균/최악의 경우를 고려해야 합니다.',
       false,
       1
     ),
+    subjectId: 'algo',
   },
   {
     ...createMockPost(
       'mock-post-4',
-      '데이터베이스 정규화',
-      '데이터베이스 설계에서 정규화의 중요성과 각 정규화 단계의 목적에 대해 학습했습니다. 실무에서 적절한 정규화 수준을 선택하는 것이 핵심입니다. 1NF는 각 컬럼이 원자값을 가져야 하며, 2NF는 부분 함수 종속성을 제거하고, 3NF는 이행 종속성을 제거합니다. 정규화를 통해 데이터 중복을 줄이고 무결성을 보장할 수 있지만, 과도한 정규화는 조인 연산을 증가시켜 성능에 영향을 줄 수 있습니다.',
+      '데이터베이스 인덱싱 전략',
+      '데이터베이스 인덱싱 전략에 대해 학습했습니다. B-Tree 인덱스의 구조와 동작 원리를 이해하고, 적절한 인덱스 설계가 쿼리 성능에 미치는 영향을 파악했습니다.',
       true,
       7
     ),
+    subjectId: 'db',
+    courseId: 'course-2',
     aiResult: {
       summary: '데이터베이스 정규화는 데이터 중복을 제거하고 무결성을 보장하기 위한 설계 기법입니다. 1NF, 2NF, 3NF 등 단계별로 정규화를 진행하며, 실무에서는 성능과 무결성 사이의 균형을 고려하여 적절한 정규화 수준을 선택해야 합니다.',
       keyPoints: [

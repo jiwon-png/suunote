@@ -27,21 +27,6 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Links */}
-          <nav className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-            <Link
-              href="/posts"
-              className="hover:text-foreground transition-colors"
-            >
-              학습 노트
-            </Link>
-            <Link
-              href="/courses"
-              className="hover:text-foreground transition-colors"
-            >
-              코스
-            </Link>
-          </nav>
         </div>
 
         {/* Copyright */}

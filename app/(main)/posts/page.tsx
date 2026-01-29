@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import PostList from "@/components/posts/PostList"
@@ -16,7 +17,16 @@ import { usePostsContext } from "@/contexts/PostsContext"
  * - Footer (app/layout.tsx에서 제공)
  */
 export default function PostsPage() {
+  const searchParams = useSearchParams()
   const { posts } = usePostsContext()
+  
+  // URL 쿼리 파라미터에서 과목 ID 가져오기
+  const subjectId = searchParams.get('subject')
+  
+  // 과목별 필터링
+  const filteredPosts = subjectId
+    ? posts.filter((post) => post.subjectId === subjectId)
+    : posts
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4">
@@ -40,7 +50,7 @@ export default function PostsPage() {
 
       {/* 학습 노트 리스트: 헤더 바로 아래에 위치 */}
       <div className="py-6">
-        <PostList posts={posts} />
+        <PostList posts={filteredPosts} />
       </div>
     </div>
   )

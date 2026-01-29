@@ -6,6 +6,7 @@ import Footer from "@/components/common/Footer";
 import { AppProvider } from "@/contexts/AppContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PostsProvider } from "@/contexts/PostsContext";
+import ErrorBoundaryWrapper from "@/components/common/ErrorBoundaryWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,17 +33,19 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <AppProvider>
-            <PostsProvider>
-              <div className="flex min-h-screen flex-col">
-                <Header />
-                <main className="flex-1">{children}</main>
-                <Footer />
-              </div>
-            </PostsProvider>
-          </AppProvider>
-        </AuthProvider>
+        <ErrorBoundaryWrapper>
+          <AuthProvider>
+            <AppProvider>
+              <PostsProvider>
+                <div className="flex min-h-screen flex-col">
+                  <Header />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                </div>
+              </PostsProvider>
+            </AppProvider>
+          </AuthProvider>
+        </ErrorBoundaryWrapper>
       </body>
     </html>
   );

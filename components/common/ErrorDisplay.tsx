@@ -1,0 +1,75 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { ROUTES } from '@/lib/constants/routes'
+import { AlertCircle, Home } from 'lucide-react'
+
+interface ErrorDisplayProps {
+  title?: string
+  message?: string
+  showHomeButton?: boolean
+  onReset?: () => void
+}
+
+export default function ErrorDisplay({
+  title = '오류가 발생했습니다',
+  message = '예상치 못한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+  showHomeButton = true,
+  onReset,
+}: ErrorDisplayProps) {
+  const router = useRouter()
+
+  const handleGoHome = () => {
+    router.push(ROUTES.POSTS)
+  }
+
+  const handleReset = () => {
+    if (onReset) {
+      onReset()
+    } else {
+      window.location.reload()
+    }
+  }
+
+  return (
+    <div className="flex min-h-[calc(100vh-200px)] items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+          </div>
+          <CardTitle className="text-2xl">{title}</CardTitle>
+          <CardDescription className="text-base">{message}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>문제가 계속되면 다음을 시도해보세요:</p>
+            <ul className="list-inside list-disc space-y-1 pl-2">
+              <li>페이지를 새로고침하세요</li>
+              <li>잠시 후 다시 시도하세요</li>
+              <li>메인 화면으로 돌아가세요</li>
+            </ul>
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-2">
+          {showHomeButton && (
+            <Button onClick={handleGoHome} className="w-full" size="lg">
+              <Home className="mr-2 h-4 w-4" />
+              메인 화면으로 돌아가기
+            </Button>
+          )}
+          <Button
+            onClick={handleReset}
+            variant="outline"
+            className="w-full"
+            size="lg"
+          >
+            다시 시도
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}
