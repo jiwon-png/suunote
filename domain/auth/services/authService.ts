@@ -91,41 +91,30 @@ export async function signInWithGoogle(
       }
     }
 
-    // 환경별 Callback URL 구성
-    // Production: NEXT_PUBLIC_SITE_URL 사용 (고정, Supabase Dashboard와 정확히 일치)
-    // Development: window.location.origin 사용 (동적, localhost는 안정적)
-    // Preview: Production URL 사용 (또는 Supabase Dashboard에 Wildcard 등록)
-    const baseUrl = 
-      process.env.NEXT_PUBLIC_SITE_URL || 
-      (typeof window !== 'undefined' ? window.location.origin : '')
-
-    if (!baseUrl) {
-      return {
-        success: false,
-        error: new Error('Callback URL을 결정할 수 없습니다. NEXT_PUBLIC_SITE_URL 환경 변수를 설정하세요.'),
-      }
+    // redirect 정보는 sessionStorage에 저장하여 콜백 성공 후 사용
+    if (typeof window !== 'undefined' && redirectTo !== '/posts') {
+      sessionStorage.setItem('oauth_redirect_to', redirectTo)
     }
 
-    // Route group (auth)는 URL에 포함되지 않으므로 /callback이 실제 경로입니다
-    const callbackUrl = `${baseUrl}/callback?redirect=${encodeURIComponent(redirectTo)}`
+    // OAuth redirectTo는 환경에 따라 분기
+    // 로컬 개발: http://localhost:3000/api/auth/callback
+    // Production: https://suunote.vercel.app/api/auth/callback
+    const isProd = process.env.NODE_ENV === 'production'
+    const callbackUrl = isProd
+      ? 'https://suunote.vercel.app/api/auth/callback'
+      : 'http://localhost:3000/api/auth/callback'
     
     console.log('[signInWithGoogle] OAuth 시작:', {
       callbackUrl,
       redirectTo,
-      baseUrl,
-      envSiteUrl: process.env.NEXT_PUBLIC_SITE_URL,
-      currentOrigin: typeof window !== 'undefined' ? window.location.origin : 'N/A',
-      isProduction: !!process.env.NEXT_PUBLIC_SITE_URL,
+      isProd,
+      nodeEnv: process.env.NODE_ENV,
     })
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: callbackUrl,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
       },
     })
 
@@ -135,7 +124,6 @@ export async function signInWithGoogle(
         message: error.message,
         status: error.status,
         callbackUrl,
-        baseUrl,
       })
       return {
         success: false,
@@ -159,8 +147,6 @@ export async function signInWithGoogle(
     console.error('[signInWithGoogle] OAuth URL 미수신:', {
       data,
       callbackUrl,
-      baseUrl,
-      envSiteUrl: process.env.NEXT_PUBLIC_SITE_URL,
       message: 'Supabase Dashboard의 Redirect URL 설정을 확인하세요.',
     })
     return {
