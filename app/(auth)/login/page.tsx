@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { BookOpen, Loader2 } from "lucide-react"
 import { signInWithGoogle } from "@/domain/auth/services/authService"
-import { isMockMode } from "@/lib/supabase/client"
+import { createClient, isMockMode } from "@/lib/supabase/client"
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -58,8 +58,37 @@ function LoginForm() {
     getErrorMessage(searchParams.get('error'))
   )
 
-  // 자동 리다이렉트 제거: 사용자가 명시적으로 로그인 버튼을 클릭할 때만 이동
-  // useEffect를 사용한 자동 리다이렉트는 제거됨
+  // OAuth 콜백 후 인증 완료 감지 및 리다이렉트
+  useEffect(() => {
+    const checkAuthAndRedirect = async () => {
+      if (isMockMode()) {
+        if (typeof window !== 'undefined') {
+          const mockSession = localStorage.getItem('mock_auth_session')
+          if (mockSession === 'authenticated') {
+            router.push(redirectTo)
+          }
+        }
+        return
+      }
+
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (user) {
+          // 이미 인증된 사용자는 리다이렉트
+          router.push(redirectTo)
+        }
+      } catch (err) {
+        // 인증 확인 실패는 무시 (로그인 페이지에 머물도록)
+        console.error('[LoginPage] Auth check error:', err)
+      }
+    }
+
+    checkAuthAndRedirect()
+  }, [router, redirectTo])
 
   const handleLogin = async () => {
     setIsLoading(true)
@@ -82,11 +111,15 @@ function LoginForm() {
         console.log('[LoginPage] Mock 모드 로그인 성공')
         router.push(redirectTo)
       } else {
-        // 실제 OAuth 성공 시 OAuth 리다이렉트가 발생하므로 여기서는 아무것도 하지 않음
-        // 하지만 리다이렉트가 발생하지 않으면 로딩 상태를 유지
-        console.log('[LoginPage] OAuth 리다이렉트 대기 중...')
-        // OAuth 리다이렉트는 자동으로 발생하므로 로딩 상태는 유지
-        // 만약 리다이렉트가 발생하지 않으면 사용자가 수동으로 페이지를 새로고침할 수 있음
+        // 실제 OAuth 성공: Supabase SDK가 자동으로 Google로 리다이렉트함
+        // 리다이렉트가 발생하면 이 페이지는 언마운트되므로 로딩 상태는 자동으로 해제됨
+        // 하지만 리다이렉트가 실패할 경우를 대비해 타임아웃 설정
+        console.log('[LoginPage] OAuth 리다이렉트 시작...')
+        
+        // 5초 후에도 리다이렉트가 발생하지 않으면 로딩 상태 해제
+        setTimeout(() => {
+          setIsLoading(false)
+        }, 5000)
       }
     } catch (err) {
       console.error('[LoginPage] 로그인 중 예외:', err)
