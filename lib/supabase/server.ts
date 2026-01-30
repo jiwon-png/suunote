@@ -63,8 +63,14 @@ export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Mock 모드: 환경 변수가 없으면 Mock 클라이언트 반환
+  // Production에서는 환경 변수가 없으면 Mock을 반환하지 않고 즉시 실패
   if (!supabaseUrl || !supabaseAnonKey) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '[createClient] Production에서 Supabase 환경 변수가 없습니다. ' +
+          'Vercel Dashboard → Environment Variables 에서 NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY 를 설정한 뒤 재배포하세요.'
+      )
+    }
     return createMockServerClient()
   }
 
