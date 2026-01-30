@@ -2,8 +2,18 @@ import { createBrowserClient } from '@supabase/ssr'
 
 /**
  * Mock Supabase 클라이언트 (환경 변수가 없을 때 사용)
+ * Production에서는 사용되지 않아야 하지만, 안전성을 위해 완전한 인터페이스 제공
  */
 function createMockClient() {
+  // Mock from 메서드: 빈 쿼리 빌더 반환
+  const createMockFrom = (table: string) => ({
+    select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }), order: () => ({ data: [], error: null }) }),
+    insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
+    update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
+    delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
+    upsert: () => ({ onConflict: () => Promise.resolve({ data: null, error: null }) }),
+  })
+
   return {
     auth: {
       getUser: async () => {
@@ -38,6 +48,14 @@ function createMockClient() {
       exchangeCodeForSession: async () => {
         return { data: null, error: null }
       },
+    },
+    from: createMockFrom,
+    storage: {
+      from: () => ({
+        upload: () => Promise.resolve({ data: null, error: null }),
+        getPublicUrl: () => ({ data: { publicUrl: '' } }),
+        remove: () => Promise.resolve({ data: null, error: null }),
+      }),
     },
   } as any
 }

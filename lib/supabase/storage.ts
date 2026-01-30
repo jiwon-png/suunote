@@ -3,7 +3,7 @@
  * 파일 업로드, 다운로드, 삭제 기능 제공
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { getErrorMessage, logError } from '@/lib/utils/errors'
 
 /**
@@ -20,7 +20,7 @@ export async function uploadFile(
   file: File
 ): Promise<{ data: string | null; error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // 파일 업로드
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -70,7 +70,7 @@ export async function getFileUrl(
   path: string
 ): Promise<{ data: string | null; error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path)
 
@@ -103,7 +103,7 @@ export async function deleteFiles(
   paths: string[]
 ): Promise<{ error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { error } = await supabase.storage.from(bucket).remove(paths)
 

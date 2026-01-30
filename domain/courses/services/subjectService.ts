@@ -3,7 +3,7 @@
  * Supabase를 통한 Subjects 데이터 CRUD 작업
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { subjectRowToDomain } from '@/lib/utils/types'
 import { getErrorMessage, logError } from '@/lib/utils/errors'
 import type { Subject } from '@/domain/courses/types'
@@ -26,7 +26,7 @@ export interface CreateSubjectData {
  */
 export async function getSubjects(userId: string): Promise<{ data: Subject[] | null; error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { data, error } = await supabase
       .from('subjects')

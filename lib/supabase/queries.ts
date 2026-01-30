@@ -3,7 +3,7 @@
  * 공통 쿼리 패턴을 재사용 가능한 함수로 추상화
  */
 
-import { createClient } from './client'
+import { createClient } from './server'
 import type { Database } from '@/types/database'
 import { PostgrestError } from '@supabase/supabase-js'
 
@@ -61,7 +61,7 @@ export async function queryUserData<T extends TableName>(
   options?: QueryOptions
 ): Promise<{ data: TableRow<T>[] | null; error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     let query = supabase.from(table).select('*').eq('user_id', userId)
 
     // 정렬 옵션 적용
@@ -108,7 +108,7 @@ export async function queryById<T extends TableName>(
   id: string
 ): Promise<{ data: TableRow<T> | null; error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data, error } = await supabase.from(table).select('*').eq('id', id).single()
 
     if (error) {
@@ -145,7 +145,7 @@ export async function queryPaginated<T extends TableName>(
   options?: Omit<QueryOptions, 'limit' | 'offset'>
 ): Promise<{ data: PaginatedResponse<TableRow<T>> | null; error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const offset = (page - 1) * pageSize
 
     // 전체 개수 조회
@@ -219,7 +219,7 @@ export async function createRecord<T extends TableName>(
   data: TableInsert<T>
 ): Promise<{ data: TableRow<T> | null; error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: insertedData, error } = await supabase.from(table).insert(data).select().single()
 
     if (error) {
@@ -250,7 +250,7 @@ export async function updateRecord<T extends TableName>(
   updates: TableUpdate<T>
 ): Promise<{ data: TableRow<T> | null; error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: updatedData, error } = await supabase
       .from(table)
       .update(updates)
@@ -285,7 +285,7 @@ export async function deleteRecord<T extends TableName>(
   id: string
 ): Promise<{ error: Error | null }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { error } = await supabase.from(table).delete().eq('id', id)
 
     if (error) {

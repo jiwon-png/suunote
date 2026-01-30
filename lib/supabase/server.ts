@@ -3,8 +3,40 @@ import { cookies } from 'next/headers'
 
 /**
  * Mock Supabase 서버 클라이언트 (환경 변수가 없을 때 사용)
+ * Production에서는 사용되지 않아야 하지만, 안전성을 위해 완전한 인터페이스 제공
  */
 function createMockServerClient() {
+  // Mock from 메서드: 빈 쿼리 빌더 반환
+  const createMockFrom = (table: string) => ({
+    select: () => ({
+      eq: () => ({
+        single: () => Promise.resolve({ data: null, error: null }),
+        order: () => Promise.resolve({ data: [], error: null }),
+      }),
+      or: () => ({
+        order: () => Promise.resolve({ data: [], error: null }),
+      }),
+      order: () => Promise.resolve({ data: [], error: null }),
+    }),
+    insert: () => ({
+      select: () => ({
+        single: () => Promise.resolve({ data: null, error: null }),
+      }),
+    }),
+    update: () => ({
+      eq: () => Promise.resolve({ data: null, error: null }),
+    }),
+    delete: () => ({
+      eq: () => Promise.resolve({ data: null, error: null }),
+    }),
+    upsert: () => ({
+      onConflict: () => ({
+        select: () => Promise.resolve({ data: null, error: null }),
+      }),
+    }),
+    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+  })
+
   return {
     auth: {
       getUser: async () => {
@@ -15,6 +47,14 @@ function createMockServerClient() {
       exchangeCodeForSession: async () => {
         return { data: null, error: null }
       },
+    },
+    from: createMockFrom,
+    storage: {
+      from: () => ({
+        upload: () => Promise.resolve({ data: null, error: null }),
+        getPublicUrl: () => ({ data: { publicUrl: '' } }),
+        remove: () => Promise.resolve({ data: null, error: null }),
+      }),
     },
   } as any
 }
