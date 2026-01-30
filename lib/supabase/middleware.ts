@@ -30,9 +30,27 @@ export async function middleware(request: NextRequest) {
   }
 
   // 실제 모드: Supabase 클라이언트 생성 및 세션 관리
+  // Production에서는 환경 변수가 필수이므로 명시적으로 체크
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[Middleware] Supabase 환경 변수가 설정되지 않았습니다.')
+    // Production에서는 환경 변수가 필수이므로 에러 반환
+    if (isProduction) {
+      return NextResponse.json(
+        { error: '서버 설정 오류: Supabase 환경 변수가 필요합니다.' },
+        { status: 500 }
+      )
+    }
+    // Development에서는 Mock 모드로 처리 (이미 위에서 체크했지만 안전장치)
+    return response
+  }
+
+  // TypeScript 타입 가드: 이 시점에서 supabaseUrl과 supabaseAnonKey는 string 타입이 보장됨
+  const url: string = supabaseUrl
+  const key: string = supabaseAnonKey
+
   const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
+    url,
+    key,
     {
       cookies: {
         getAll() {
