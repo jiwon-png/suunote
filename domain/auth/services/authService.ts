@@ -91,13 +91,24 @@ export async function signInWithGoogle(
       }
     }
 
+    // 환경 변수에서 Site URL 가져오기 (Production에서 안정적)
+    // NEXT_PUBLIC_SITE_URL 또는 NEXT_PUBLIC_NEXTAUTH_URL 우선 사용
+    // 없으면 window.location.origin 사용 (Dev 환경 대응)
+    const siteUrl = 
+      process.env.NEXT_PUBLIC_SITE_URL || 
+      process.env.NEXT_PUBLIC_NEXTAUTH_URL || 
+      window.location.origin
+
     // Route group (auth)는 URL에 포함되지 않으므로 /callback이 실제 경로입니다
-    const callbackUrl = `${window.location.origin}/callback?redirect=${encodeURIComponent(redirectTo)}`
+    const callbackUrl = `${siteUrl}/callback?redirect=${encodeURIComponent(redirectTo)}`
     
     console.log('[signInWithGoogle] OAuth 시작:', {
       callbackUrl,
       redirectTo,
+      siteUrl,
       origin: window.location.origin,
+      envSiteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+      envNextAuthUrl: process.env.NEXT_PUBLIC_NEXTAUTH_URL,
     })
 
     const { data, error } = await supabase.auth.signInWithOAuth({
