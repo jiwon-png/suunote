@@ -539,19 +539,21 @@ export default function PostDetailPage({
 
         {/* AI 결과 섹션 */}
         {/* aiResult가 있으면 표시 (aiProcessed 체크 완화) */}
-        {displayPost.aiResult && (
+        {displayPost.aiResult && (() => {
+          const aiResult = displayPost.aiResult!
+          return (
           <div className="space-y-5">
             {/* AI Provider 정보 (fallback 발생 시 표시) */}
-            {displayPost.aiResult.provider && (
+            {aiResult.provider && (
               <div className="rounded-lg border border-border bg-secondary/50 px-4 py-2 text-xs text-muted-foreground">
                 <span className="font-medium">AI 엔진:</span>{' '}
-                {displayPost.aiResult.provider === 'google' ? 'Google Gemini' : 'Groq Llama'}
-                {displayPost.aiResult.model && ` (${displayPost.aiResult.model})`}
+                {aiResult.provider === 'google' ? 'Google Gemini' : 'Groq Llama'}
+                {aiResult.model && ` (${aiResult.model})`}
               </div>
             )}
 
             {/* AI 요약 */}
-            {displayPost.aiResult.summary && (
+            {aiResult.summary && (
               <Card>
                 <CardHeader className="pb-3 px-4 pt-4">
                   <div className="flex items-center gap-2.5">
@@ -563,14 +565,14 @@ export default function PostDetailPage({
                 </CardHeader>
                 <CardContent className="px-4 pb-4 pt-0">
                   <p className="text-sm text-card-foreground leading-relaxed">
-                    {displayPost.aiResult.summary}
+                    {aiResult.summary}
                   </p>
                 </CardContent>
               </Card>
             )}
 
             {/* 핵심 포인트 */}
-            {displayPost.aiResult.keyPoints && displayPost.aiResult.keyPoints.length > 0 && (
+            {aiResult.keyPoints && aiResult.keyPoints.length > 0 && (
               <Card>
                 <CardHeader className="pb-3 px-4 pt-4">
                   <div className="flex items-center gap-2.5">
@@ -582,7 +584,7 @@ export default function PostDetailPage({
                 </CardHeader>
                 <CardContent className="px-4 pb-4 pt-0">
                   <ol className="space-y-2.5">
-                    {displayPost.aiResult.keyPoints.map((point, index) => (
+                    {aiResult.keyPoints.map((point, index) => (
                       <li key={index} className="flex items-start gap-2.5">
                         <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary mt-0.5">
                           {index + 1}
@@ -598,7 +600,7 @@ export default function PostDetailPage({
             )}
 
             {/* 학습 방향 제안 */}
-            {displayPost.aiResult.studyDirection && (
+            {aiResult.studyDirection && (
               <Card>
                 <CardHeader className="pb-3 px-4 pt-4">
                   <div className="flex items-center gap-2.5">
@@ -610,14 +612,14 @@ export default function PostDetailPage({
                 </CardHeader>
                 <CardContent className="px-4 pb-4 pt-0">
                   <p className="text-sm text-card-foreground leading-relaxed">
-                    {displayPost.aiResult.studyDirection}
+                    {aiResult.studyDirection}
                   </p>
                 </CardContent>
               </Card>
             )}
 
             {/* 퀴즈 섹션 */}
-            {displayPost.aiResult.quiz && displayPost.aiResult.quiz.length > 0 && (
+            {aiResult.quiz && aiResult.quiz.length > 0 && (
               <Card>
                 <CardHeader className="pb-3 px-4 pt-4">
                   <div className="flex items-center gap-2.5">
@@ -629,7 +631,7 @@ export default function PostDetailPage({
                 </CardHeader>
                 <CardContent className="px-4 pb-4 pt-0">
                   <div className="space-y-4">
-                    {displayPost.aiResult.quiz.map((quizItem, index) => (
+                    {aiResult.quiz.map((quizItem, index) => (
                       <div key={index} className="space-y-2 rounded-lg border border-border bg-card p-3">
                         <p className="text-sm font-medium text-card-foreground">
                           {index + 1}. {quizItem.question}
@@ -664,7 +666,9 @@ export default function PostDetailPage({
             )}
 
             {/* 타임라인 섹션 */}
-            {displayPost.aiResult.timeline && displayPost.aiResult.timeline.length > 0 && (
+            {aiResult.timeline && aiResult.timeline.length > 0 && (() => {
+              const timeline = aiResult.timeline.sort((a, b) => a.order - b.order)
+              return (
               <Card>
                 <CardHeader className="pb-3 px-4 pt-4">
                   <div className="flex items-center gap-2.5">
@@ -676,36 +680,36 @@ export default function PostDetailPage({
                 </CardHeader>
                 <CardContent className="px-4 pb-4 pt-0">
                   <div className="space-y-3">
-                    {displayPost.aiResult.timeline
-                      .sort((a, b) => a.order - b.order)
-                      .map((timelineItem, index) => (
-                        <div key={index} className="flex gap-3">
-                          <div className="flex flex-col items-center">
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                              {timelineItem.order}
-                            </div>
-                            {index < displayPost.aiResult.timeline!.length - 1 && (
-                              <div className="h-full w-0.5 bg-border mt-1" />
-                            )}
+                    {timeline.map((timelineItem, index) => (
+                      <div key={index} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                            {timelineItem.order}
                           </div>
-                          <div className="flex-1 pb-4">
-                            <p className="text-sm font-medium text-card-foreground">
-                              {timelineItem.title}
-                            </p>
-                            {timelineItem.detail && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {timelineItem.detail}
-                              </p>
-                            )}
-                          </div>
+                          {index < timeline.length - 1 && (
+                            <div className="h-full w-0.5 bg-border mt-1" />
+                          )}
                         </div>
-                      ))}
+                        <div className="flex-1 pb-4">
+                          <p className="text-sm font-medium text-card-foreground">
+                            {timelineItem.title}
+                          </p>
+                          {timelineItem.detail && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {timelineItem.detail}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
-            )}
+              )
+            })()}
           </div>
-        )}
+          )
+        })()}
 
         {/* AI 처리 중 상태 */}
         {!displayPost.aiProcessed && (

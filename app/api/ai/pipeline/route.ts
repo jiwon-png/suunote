@@ -19,6 +19,7 @@ import type { Database, Json } from '@/types/database'
 
 type AIResponseRow = Database['public']['Tables']['ai_responses']['Row']
 type AIResultRow = Database['public']['Tables']['ai_results']['Row']
+type PostAttachmentRow = Database['public']['Tables']['post_attachments']['Row']
 
 interface PipelineRequest {
   postId: string
@@ -104,9 +105,9 @@ export async function POST(request: NextRequest) {
     const MAX_INPUT_LENGTH = 2000
     let combinedContent = content
     if (attachments && attachments.length > 0) {
-      const extractedTexts = attachments
-        .map((att) => (att as any).extracted_text)
-        .filter((text) => text && text.trim().length > 0)
+      const extractedTexts = (attachments as Pick<PostAttachmentRow, 'extracted_text'>[])
+        .map((att) => att.extracted_text)
+        .filter((text): text is string => text !== null && text.trim().length > 0)
         .join('\n\n')
 
       if (extractedTexts) {
@@ -116,8 +117,12 @@ export async function POST(request: NextRequest) {
     
     // 입력 텍스트가 너무 길면 앞부분만 사용 (토큰 절약)
     if (combinedContent.length > MAX_INPUT_LENGTH) {
+      const originalLength = content.length + ((attachments as Pick<PostAttachmentRow, 'extracted_text'>[] | null)?.reduce((sum: number, att) => {
+        const text = att.extracted_text
+        return sum + (text?.length || 0)
+      }, 0) || 0)
       combinedContent = combinedContent.substring(0, MAX_INPUT_LENGTH) + '\n\n[... 내용이 길어 일부만 사용되었습니다 ...]'
-      console.log(`[AI Pipeline] 입력 텍스트가 ${combinedContent.length}자로 제한되었습니다. (원본: ${content.length + (attachments?.reduce((sum, att) => sum + ((att as any).extracted_text?.length || 0), 0) || 0)}자)`)
+      console.log(`[AI Pipeline] 입력 텍스트가 ${combinedContent.length}자로 제한되었습니다. (원본: ${originalLength}자)`)
     }
 
     // 6. AI 파이프라인 실행

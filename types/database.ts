@@ -1,5 +1,13 @@
 // This file contains auto-generated types from Supabase
 // To regenerate: npx supabase gen types typescript --project-id sjjsagljrmkkyuvpbtba > types/database.ts
+//
+// ⚠️ IMPORTANT: Manual additions below
+// The following tables were manually added/updated because they were not included in the auto-generated types:
+// - ai_responses: AI 호출 로그/캐시 테이블
+// - ai_results: quiz, timeline, provider, model 컬럼 추가
+//
+// TODO: After running `npx supabase gen types`, verify these manual additions are still needed
+// and update accordingly if Supabase CLI starts including them automatically.
 
 export type Json =
   | string
@@ -192,6 +200,69 @@ export type Database = {
           }
         ]
       }
+      ai_responses: {
+        Row: {
+          id: string
+          post_id: string | null
+          user_id: string | null
+          category: 'summary' | 'quiz' | 'timeline' | 'pipeline'
+          provider: 'google' | 'groq'
+          model: string
+          prompt: string
+          response: Json
+          prompt_tokens: number | null
+          completion_tokens: number | null
+          total_tokens: number | null
+          latency_ms: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          post_id?: string | null
+          user_id?: string | null
+          category: 'summary' | 'quiz' | 'timeline' | 'pipeline'
+          provider: 'google' | 'groq'
+          model: string
+          prompt: string
+          response: Json
+          prompt_tokens?: number | null
+          completion_tokens?: number | null
+          total_tokens?: number | null
+          latency_ms?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string | null
+          user_id?: string | null
+          category?: 'summary' | 'quiz' | 'timeline' | 'pipeline'
+          provider?: 'google' | 'groq'
+          model?: string
+          prompt?: string
+          response?: Json
+          prompt_tokens?: number | null
+          completion_tokens?: number | null
+          total_tokens?: number | null
+          latency_ms?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_responses_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_responses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       ai_results: {
         Row: {
           id: string
@@ -199,7 +270,11 @@ export type Database = {
           summary: string | null
           key_points: Json | null
           study_direction: string | null
+          quiz: Json | null
+          timeline: Json | null
           raw_response: Json | null
+          provider: 'google' | 'groq' | null
+          model: string | null
           created_at: string
           updated_at: string
         }
@@ -209,7 +284,11 @@ export type Database = {
           summary?: string | null
           key_points?: Json | null
           study_direction?: string | null
+          quiz?: Json | null
+          timeline?: Json | null
           raw_response?: Json | null
+          provider?: 'google' | 'groq' | null
+          model?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -219,7 +298,11 @@ export type Database = {
           summary?: string | null
           key_points?: Json | null
           study_direction?: string | null
+          quiz?: Json | null
+          timeline?: Json | null
           raw_response?: Json | null
+          provider?: 'google' | 'groq' | null
+          model?: string | null
           created_at?: string
           updated_at?: string
         }

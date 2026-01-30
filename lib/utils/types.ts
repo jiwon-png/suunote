@@ -113,10 +113,11 @@ export function aiResultRowToDomain(row: AIResultRow): AIResult {
   let quiz: AIResult['quiz'] = undefined
   if (row.quiz) {
     if (Array.isArray(row.quiz)) {
-      quiz = row.quiz as AIResult['quiz']
+      // Json[] -> unknown -> QuizItem[] (안전한 타입 변환)
+      quiz = row.quiz as unknown as AIResult['quiz']
     } else if (typeof row.quiz === 'object') {
       // JSONB 객체인 경우 배열로 변환 시도
-      quiz = [row.quiz] as AIResult['quiz']
+      quiz = [row.quiz] as unknown as AIResult['quiz']
     }
   }
 
@@ -124,10 +125,11 @@ export function aiResultRowToDomain(row: AIResultRow): AIResult {
   let timeline: AIResult['timeline'] = undefined
   if (row.timeline) {
     if (Array.isArray(row.timeline)) {
-      timeline = row.timeline as AIResult['timeline']
+      // Json[] -> unknown -> TimelineItem[] (안전한 타입 변환)
+      timeline = row.timeline as unknown as AIResult['timeline']
     } else if (typeof row.timeline === 'object') {
       // JSONB 객체인 경우 배열로 변환 시도
-      timeline = [row.timeline] as AIResult['timeline']
+      timeline = [row.timeline] as unknown as AIResult['timeline']
     }
   }
 
