@@ -1,11 +1,11 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+/**
+ * Edge-compatible Supabase middleware
+ * Updates session and handles authentication redirects
+ */
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request,
-  })
-
   const { pathname } = request.nextUrl
 
   // 환경 변수 확인 (non-null assertion: Production에서는 필수)
@@ -20,68 +20,50 @@ export async function middleware(request: NextRequest) {
   const isMockMode = !isProduction && mockModeEnabled && !hasEnvVars
 
   // Mock 모드: 환경 변수가 없으면 Supabase 클라이언트 생성 건너뛰기
-  // 루트 경로는 로그인 페이지로 리다이렉트
   if (isMockMode) {
     if (pathname === '/') {
       return NextResponse.redirect(new URL('/login', request.url))
     }
-    // 나머지 경로는 그대로 통과 (클라이언트에서 인증 체크)
-    return response
+    return NextResponse.next({ request })
   }
 
-  // 실제 모드: Supabase 클라이언트 생성 및 세션 관리
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(
-          cookiesToSet: Array<{
-            name: string
-            value: string
-            options?: CookieOptions
-          }>
-        ): void {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value)
-          })
+  // Edge-compatible Supabase client 생성
+  // Response는 먼저 생성하고, 쿠키 설정 시 업데이트
+  let response = NextResponse.next({ request })
 
-          response = NextResponse.next({
-            request,
-          })
-
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
-          })
-        },
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll()
       },
-    }
-  )
+      setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
+        // Edge Runtime에서는 request.cookies를 직접 수정하지 않고
+        // response.cookies에만 설정합니다
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options)
+        })
+      },
+    },
+  })
+
+  // 세션 갱신 (Edge Middleware에서는 getSession 또는 getClaims 사용 권장)
+  // getUser()도 작동하지만, getSession()이 더 가벼움
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
   // OAuth 콜백 경로는 인증 체크에서 제외 (세션 설정 중이므로)
   if (pathname === '/callback' || pathname.startsWith('/callback')) {
     return response
   }
 
-  // 세션 확인
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // 보호된 경로 목록 (로그인이 필요한 경로)
-  // /posts, /posts/new, /posts/[id] 등 모든 하위 경로 포함
-  // /dashboard, /courses 및 모든 하위 경로 포함
+  // 보호된 경로 목록
   const protectedPaths = ['/posts', '/dashboard', '/courses']
-  const isProtectedPath = protectedPaths.some((path) =>
-    pathname.startsWith(path)
-  )
+  const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path))
 
-  // 1. 루트 경로 처리: 항상 /login 또는 /posts로 리다이렉트
+  // 1. 루트 경로 처리
   if (pathname === '/') {
-    if (user) {
+    if (session?.user) {
       return NextResponse.redirect(new URL('/posts', request.url))
     } else {
       return NextResponse.redirect(new URL('/login', request.url))
@@ -89,16 +71,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // 2. 보호된 경로 접근 시 인증 체크
-  if (isProtectedPath && !user) {
+  if (isProtectedPath && !session?.user) {
     const redirectUrl = new URL('/login', request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // 3. 로그인 페이지 접근: 자동 리다이렉트 제거
-  // 사용자가 명시적으로 /login에 접근할 수 있도록 허용
-  // (예: 로그아웃 후 다시 로그인하려는 경우)
-  // 자동 리다이렉트는 제거하고, 사용자가 로그인 버튼을 클릭할 때만 이동
-
+  // 3. 로그인 페이지는 자유롭게 접근 가능
   return response
 }
