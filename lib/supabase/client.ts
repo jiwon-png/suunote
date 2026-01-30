@@ -66,10 +66,22 @@ export function createClient() {
 
   // Mock 모드: 환경 변수가 없으면 Mock 클라이언트 반환
   if (!supabaseUrl || !supabaseAnonKey) {
-    return createMockClient()
+    console.error('[createClient] ⚠️ Supabase 환경 변수가 설정되지 않았습니다:', {
+      hasUrl: !!supabaseUrl,
+      hasAnonKey: !!supabaseAnonKey,
+      nodeEnv: process.env.NODE_ENV,
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+    })
+    const mockClient = createMockClient()
+    // Mock 클라이언트임을 표시하는 플래그 추가
+    ;(mockClient as any)._isMock = true
+    return mockClient
   }
 
-  return createBrowserClient(supabaseUrl, supabaseAnonKey)
+  const client = createBrowserClient(supabaseUrl, supabaseAnonKey)
+  // 실제 클라이언트임을 표시하는 플래그 추가
+  ;(client as any)._isMock = false
+  return client
 }
 
 /**

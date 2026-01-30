@@ -79,6 +79,34 @@ export async function signInWithGoogle(
       }
     }
 
+    // 환경 변수 확인 (실제 Supabase 클라이언트 사용 가능 여부)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      const errorMessage = `Supabase 환경 변수가 설정되지 않았습니다. Vercel Dashboard에서 다음 환경 변수를 설정해주세요:
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+현재 상태:
+- NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? '설정됨' : '❌ 미설정'}
+- NEXT_PUBLIC_SUPABASE_ANON_KEY: ${supabaseAnonKey ? '설정됨' : '❌ 미설정'}
+- NODE_ENV: ${process.env.NODE_ENV || 'N/A'}
+- Hostname: ${typeof window !== 'undefined' ? window.location.hostname : 'N/A'}`
+      
+      console.error('[signInWithGoogle] ❌ 환경 변수 미설정:', {
+        hasUrl: !!supabaseUrl,
+        hasAnonKey: !!supabaseAnonKey,
+        nodeEnv: process.env.NODE_ENV,
+        hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+      })
+      
+      return {
+        success: false,
+        error: new Error(errorMessage),
+      }
+    }
+
     // 실제 Supabase OAuth 로그인
     const supabase = createClient()
     const redirectTo = options?.redirectTo || '/posts'
@@ -88,6 +116,23 @@ export async function signInWithGoogle(
       return {
         success: false,
         error: new Error('OAuth 로그인은 브라우저 환경에서만 가능합니다.'),
+      }
+    }
+
+    // Mock 클라이언트 사용 여부 확인 (추가 안전장치)
+    if ((supabase as any)._isMock === true) {
+      const errorMessage = `Mock 클라이언트가 사용되고 있습니다. 환경 변수를 확인해주세요.
+- NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? '설정됨' : '❌ 미설정'}
+- NEXT_PUBLIC_SUPABASE_ANON_KEY: ${supabaseAnonKey ? '설정됨' : '❌ 미설정'}`
+      
+      console.error('[signInWithGoogle] ❌ Mock 클라이언트 감지:', {
+        hasUrl: !!supabaseUrl,
+        hasAnonKey: !!supabaseAnonKey,
+      })
+      
+      return {
+        success: false,
+        error: new Error(errorMessage),
       }
     }
 
@@ -112,6 +157,8 @@ export async function signInWithGoogle(
       isProd,
       hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
       fullUrl: typeof window !== 'undefined' ? window.location.href : 'N/A',
+      hasEnvVars: !!(supabaseUrl && supabaseAnonKey),
+      isMockClient: (supabase as any)._isMock === true,
     })
 
     const { data, error } = await supabase.auth.signInWithOAuth({

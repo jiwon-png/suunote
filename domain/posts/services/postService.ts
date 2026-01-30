@@ -373,6 +373,19 @@ export async function createPost(
       }
     }
 
+    // insertedData가 null인 경우 처리 (Mock 클라이언트 또는 DB 오류)
+    if (!insertedData) {
+      console.error('[createPost] ❌ INSERT 성공했지만 데이터가 반환되지 않음:', {
+        userId,
+        title: data.title,
+        message: 'Vercel Dashboard에서 NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY 환경 변수를 확인하세요.',
+      })
+      return {
+        data: null,
+        error: new Error('학습 노트 생성에 실패했습니다. 환경 설정을 확인해주세요.'),
+      }
+    }
+
     const postId = insertedData.id
     let aiProcessed = false
 
