@@ -11,7 +11,13 @@ export async function middleware(request: NextRequest) {
   // 환경 변수 확인
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  const isMockMode = !supabaseUrl || !supabaseAnonKey
+  
+  // Production에서는 절대 Mock 모드가 활성화되지 않습니다
+  // Development에서만 NEXT_PUBLIC_MOCK_MODE=true일 때 Mock 모드가 활성화됩니다
+  const isProduction = process.env.NODE_ENV === 'production'
+  const mockModeEnabled = process.env.NEXT_PUBLIC_MOCK_MODE === 'true'
+  const hasEnvVars = supabaseUrl && supabaseAnonKey
+  const isMockMode = !isProduction && mockModeEnabled && !hasEnvVars
 
   // Mock 모드: 환경 변수가 없으면 Supabase 클라이언트 생성 건너뛰기
   // 루트 경로는 로그인 페이지로 리다이렉트

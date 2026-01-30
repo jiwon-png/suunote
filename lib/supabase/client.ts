@@ -74,9 +74,24 @@ export function createClient() {
 
 /**
  * Mock 모드인지 확인하는 헬퍼 함수
+ * 
+ * Production에서는 절대 Mock 모드가 활성화되지 않습니다.
+ * Development에서만 NEXT_PUBLIC_MOCK_MODE=true일 때 Mock 모드가 활성화됩니다.
  */
 export function isMockMode(): boolean {
+  // Production에서는 항상 false 반환 (Mock 모드 비활성화)
+  if (process.env.NODE_ENV === 'production') {
+    return false
+  }
+
+  // Development에서도 NEXT_PUBLIC_MOCK_MODE가 명시적으로 'true'일 때만 Mock 모드 활성화
+  const mockModeEnabled = process.env.NEXT_PUBLIC_MOCK_MODE === 'true'
+  
+  // 환경 변수가 없고 Mock 모드가 명시적으로 활성화된 경우에만 true 반환
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  return !supabaseUrl || !supabaseAnonKey
+  const hasEnvVars = supabaseUrl && supabaseAnonKey
+  
+  // Mock 모드가 명시적으로 활성화되었고 환경 변수가 없을 때만 true
+  return mockModeEnabled && !hasEnvVars
 }
