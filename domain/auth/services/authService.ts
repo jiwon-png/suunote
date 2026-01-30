@@ -96,10 +96,12 @@ export async function signInWithGoogle(
       sessionStorage.setItem('oauth_redirect_to', redirectTo)
     }
 
-    // OAuth redirectTo는 환경에 따라 분기
+    // OAuth redirectTo는 런타임에 실제 도메인을 확인하여 분기
     // 로컬 개발: http://localhost:3000/api/auth/callback
     // Production: https://suunote.vercel.app/api/auth/callback
-    const isProd = process.env.NODE_ENV === 'production'
+    // window.location.hostname을 사용하여 런타임에 정확한 환경 판단
+    const isProd = typeof window !== 'undefined' && 
+      window.location.hostname === 'suunote.vercel.app'
     const callbackUrl = isProd
       ? 'https://suunote.vercel.app/api/auth/callback'
       : 'http://localhost:3000/api/auth/callback'
@@ -108,7 +110,8 @@ export async function signInWithGoogle(
       callbackUrl,
       redirectTo,
       isProd,
-      nodeEnv: process.env.NODE_ENV,
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+      fullUrl: typeof window !== 'undefined' ? window.location.href : 'N/A',
     })
 
     const { data, error } = await supabase.auth.signInWithOAuth({
