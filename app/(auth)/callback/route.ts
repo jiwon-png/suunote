@@ -1,4 +1,5 @@
-import { createClient, isMockMode } from '@/lib/supabase/server'
+import { isMockMode } from '@/lib/supabase/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
@@ -56,8 +57,40 @@ export async function GET(request: NextRequest) {
   }
 
   // 인증 코드가 있는 경우 세션 교환
+  // 중요: NextResponse를 먼저 생성하여 쿠키가 리다이렉트 응답에 포함되도록 함
+  const redirectUrl = new URL(redirectTo, requestUrl.origin)
+  const response = NextResponse.redirect(redirectUrl)
+
   try {
-    const supabase = await createClient()
+    // 환경 변수 확인
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase environment variables are not set')
+    }
+
+    // Route Handler에서 쿠키를 NextResponse에 직접 설정하도록 createServerClient 사용
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(
+          cookiesToSet: Array<{
+            name: string
+            value: string
+            options?: CookieOptions
+          }>
+        ) {
+          // 쿠키를 NextResponse에 직접 설정하여 리다이렉트 응답에 포함됨
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    })
+
     const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
     if (exchangeError) {
@@ -75,6 +108,9 @@ export async function GET(request: NextRequest) {
       loginUrl.searchParams.set('error', 'session_exchange_failed')
       return NextResponse.redirect(loginUrl)
     }
+
+    // 쿠키가 설정된 응답 반환
+    return response
   } catch (err) {
     console.error('Unexpected error during session exchange:', err)
     const loginUrl = new URL('/login', request.url)
@@ -85,9 +121,4 @@ export async function GET(request: NextRequest) {
     )
     return NextResponse.redirect(loginUrl)
   }
-
-  // 원래 가려던 페이지로 리다이렉트
-  // request.url의 origin을 사용하여 절대 URL 생성
-  const redirectUrl = new URL(redirectTo, requestUrl.origin)
-  return NextResponse.redirect(redirectUrl)
 }
