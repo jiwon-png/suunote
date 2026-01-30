@@ -1,5 +1,10 @@
 import { createBrowserClient } from '@supabase/ssr'
 
+// Production에서 새 번들 로드 여부 확인용 (브라우저 콘솔에서 확인)
+if (typeof window !== 'undefined') {
+  console.error('🔥 CLIENT SUPABASE CLIENT LOADED')
+}
+
 /**
  * Mock Supabase 클라이언트 (환경 변수가 없을 때 사용)
  * Production에서는 사용되지 않아야 하지만, 안전성을 위해 완전한 인터페이스 제공

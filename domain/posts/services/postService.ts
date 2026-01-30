@@ -3,6 +3,7 @@
  * Supabase를 통한 Posts 데이터 CRUD 작업
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { postRowToDomain, aiResultRowToDomain, domainToPostAttachmentInsert } from '@/lib/utils/types'
 import { getErrorMessage, logError } from '@/lib/utils/errors'
@@ -102,24 +103,17 @@ export async function getPosts(
 }
 
 /**
- * 페이지네이션을 지원하는 Posts 조회 함수
- * ai_results와 post_attachments 테이블과 LEFT JOIN합니다.
- * 검색 및 필터 옵션도 지원합니다.
- * 
- * @param userId 사용자 ID
- * @param page 페이지 번호 (1부터 시작)
- * @param pageSize 페이지당 항목 수
- * @param options 검색 및 필터 옵션
- * @returns 페이지네이션된 Post 응답
+ * Supabase 클라이언트를 받아 페이지네이션 Posts 조회 (Server Action 등 서버 측에서 사용)
+ * 서버에서는 createClient from server 를 넘겨 런타임 env를 사용하도록 함.
  */
-export async function getPostsPaginated(
+export async function getPostsPaginatedWithClient(
+  supabase: SupabaseClient<Database>,
   userId: string,
   page: number,
   pageSize: number,
   options?: SearchPostsOptions
 ): Promise<{ data: PaginatedResponse<Post> | null; error: Error | null }> {
   try {
-    const supabase = createClient()
     const offset = (page - 1) * pageSize
 
     // 전체 개수 조회 (필터 적용)
@@ -236,6 +230,26 @@ export async function getPostsPaginated(
       error: new Error(getErrorMessage(error)),
     }
   }
+}
+
+/**
+ * 페이지네이션을 지원하는 Posts 조회 함수 (클라이언트에서 호출 시 브라우저 Supabase 클라이언트 사용)
+ * ai_results와 post_attachments 테이블과 LEFT JOIN합니다.
+ *
+ * @param userId 사용자 ID
+ * @param page 페이지 번호 (1부터 시작)
+ * @param pageSize 페이지당 항목 수
+ * @param options 검색 및 필터 옵션
+ * @returns 페이지네이션된 Post 응답
+ */
+export async function getPostsPaginated(
+  userId: string,
+  page: number,
+  pageSize: number,
+  options?: SearchPostsOptions
+): Promise<{ data: PaginatedResponse<Post> | null; error: Error | null }> {
+  const supabase = createClient()
+  return getPostsPaginatedWithClient(supabase, userId, page, pageSize, options)
 }
 
 /**

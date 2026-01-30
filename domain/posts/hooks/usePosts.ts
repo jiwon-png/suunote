@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthContext } from '@/contexts/AuthContext'
-import { getPosts, getPostsPaginated, type SearchPostsOptions } from '@/domain/posts/services/postService'
+import { getPostsPaginatedAction } from '@/app/(main)/posts/actions'
+import { getPosts, type SearchPostsOptions } from '@/domain/posts/services/postService'
 import type { Post } from '@/domain/posts/types'
 import type { PaginatedResponse } from '@/types/api'
 
@@ -68,8 +69,8 @@ export function usePosts(options?: UsePostsOptions): UsePostsReturn {
       if (options?.courseId) searchOptions.courseId = options.courseId
 
       if (usePagination) {
-        // 페이지네이션 모드
-        const { data, error: fetchError } = await getPostsPaginated(
+        // 페이지네이션 모드: Server Action 사용 (서버 런타임 env로 Supabase 호출 → Production 정상 동작)
+        const { data, error: fetchError } = await getPostsPaginatedAction(
           user.id,
           currentPage,
           pageSize,
