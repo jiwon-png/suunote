@@ -3,7 +3,7 @@
  * Supabase를 통한 Courses 데이터 CRUD 작업
  */
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/client'
 import { courseRowToDomain } from '@/lib/utils/types'
 import { getErrorMessage, logError } from '@/lib/utils/errors'
 import type { Course } from '@/domain/courses/types'
@@ -33,7 +33,7 @@ export interface CourseWithSubject extends Course {
  */
 export async function getCourses(userId: string): Promise<{ data: CourseWithSubject[] | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     const { data, error } = await supabase
       .from('courses')
@@ -94,7 +94,7 @@ export async function getCourse(
   userId: string
 ): Promise<{ data: CourseWithSubject | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     const { data, error } = await supabase
       .from('courses')
@@ -154,7 +154,7 @@ export async function createCourse(
   data: CreateCourseData
 ): Promise<{ data: Course | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     const { data: insertedData, error } = await supabase
       .from('courses')
@@ -202,7 +202,7 @@ export async function updateCourse(
   updates: Partial<Pick<Course, 'subjectId' | 'title' | 'description' | 'courseDate'>>
 ): Promise<{ data: Course | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     const updateData: any = {}
     if (updates.subjectId !== undefined) updateData.subject_id = updates.subjectId ?? null
@@ -252,7 +252,7 @@ export async function deleteCourse(
   userId: string
 ): Promise<{ error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     const { error } = await supabase
       .from('courses')

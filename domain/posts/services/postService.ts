@@ -3,7 +3,7 @@
  * Supabase를 통한 Posts 데이터 CRUD 작업
  */
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/client'
 import { postRowToDomain, aiResultRowToDomain, domainToPostAttachmentInsert } from '@/lib/utils/types'
 import { getErrorMessage, logError } from '@/lib/utils/errors'
 import { uploadFile, deleteFiles } from '@/lib/supabase/storage'
@@ -38,7 +38,7 @@ export async function getPosts(
   options?: SearchPostsOptions
 ): Promise<{ data: Post[] | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     // 쿼리 빌더 시작
     let query = supabase
@@ -119,7 +119,7 @@ export async function getPostsPaginated(
   options?: SearchPostsOptions
 ): Promise<{ data: PaginatedResponse<Post> | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
     const offset = (page - 1) * pageSize
 
     // 전체 개수 조회 (필터 적용)
@@ -251,7 +251,7 @@ export async function getPost(
   userId: string
 ): Promise<{ data: Post | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     // posts 테이블 조회
     const { data: postData, error: postError } = await supabase
@@ -348,7 +348,7 @@ export async function createPost(
   processWithAI: boolean = true
 ): Promise<{ data: Post | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     // posts 테이블에 INSERT
     const { data: insertedData, error: insertError } = await supabase
@@ -507,7 +507,7 @@ export async function updatePost(
   updates: Partial<Pick<Post, 'title' | 'content' | 'courseId' | 'subjectId'>>
 ): Promise<{ data: Post | null; error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     const updateData: any = {}
     if (updates.title !== undefined) updateData.title = updates.title
@@ -557,7 +557,7 @@ export async function deletePost(
   userId: string
 ): Promise<{ error: Error | null }> {
   try {
-    const supabase = await createClient()
+    const supabase = createClient()
 
     // 먼저 첨부 파일 목록 조회 (Storage 파일 삭제용)
     const { data: attachments } = await supabase
