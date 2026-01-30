@@ -119,14 +119,22 @@ export async function signInWithGoogle(
       }
     }
 
-    // OAuth는 리다이렉트를 통해 처리되므로 여기서는 성공으로 간주
-    // data.url이 있으면 리다이렉트가 시작된 것
+    // OAuth URL이 반환되면 브라우저를 명시적으로 리다이렉트
     if (data?.url) {
       console.log('[signInWithGoogle] OAuth 리다이렉트 URL:', data.url)
+      // 브라우저를 Google OAuth 페이지로 리다이렉트
+      window.location.href = data.url
+      // 리다이렉트가 시작되므로 여기서 함수 종료
+      // 실제 리다이렉트는 브라우저가 처리하므로 성공으로 간주
+      return {
+        success: true,
+      }
     }
 
+    // URL이 없는 경우는 예상치 못한 상황
     return {
-      success: true,
+      success: false,
+      error: new Error('OAuth URL을 받지 못했습니다.'),
     }
   } catch (error) {
     return {
