@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, use, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -60,12 +60,14 @@ function formatDateTime(date: Date): string {
 export default function PostDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  // Next.js 15+에서 params는 Promise이므로 React.use()로 unwrap
+  const { id } = use(params)
   const router = useRouter()
   const { user } = useAuthContext()
   const { refetch: refetchPosts, updatePost: updatePostInContext, deletePost: deletePostInContext } = usePostsContext()
-  const { post, isLoading, error, refetch } = usePost(params.id)
+  const { post, isLoading, error, refetch } = usePost(id)
   const [isContentExpanded, setIsContentExpanded] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -74,6 +76,34 @@ export default function PostDetailPage({
   const [isUpdating, setIsUpdating] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // AI 처리 중일 때 주기적으로 refetch (polling)
+  useEffect(() => {
+    if (!post?.id || post.aiResult) {
+      // post가 없거나 aiResult가 이미 있으면 polling 중지
+      return
+    }
+
+    // AI 처리 중이면 3초마다 refetch하여 AI 결과 확인
+    const intervalId = setInterval(() => {
+      // refetch를 직접 호출 (의존성 배열에서 제외하여 무한 루프 방지)
+      refetch().catch(() => {
+        // 에러는 무시 (이미 error state로 처리됨)
+      })
+    }, 3000) // 3초마다 refetch
+
+    // 최대 60초까지만 polling
+    const timeoutId = setTimeout(() => {
+      clearInterval(intervalId)
+    }, 60000)
+
+    return () => {
+      clearInterval(intervalId)
+      clearTimeout(timeoutId)
+    }
+    // refetch는 의존성에서 제외 (무한 루프 방지)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post?.id, post?.aiResult])
 
   // 수정 모드 진입
   const handleEdit = () => {
@@ -508,8 +538,18 @@ export default function PostDetailPage({
         )}
 
         {/* AI 결과 섹션 */}
-        {displayPost.aiProcessed && displayPost.aiResult && (
+        {/* aiResult가 있으면 표시 (aiProcessed 체크 완화) */}
+        {displayPost.aiResult && (
           <div className="space-y-5">
+            {/* AI Provider 정보 (fallback 발생 시 표시) */}
+            {displayPost.aiResult.provider && (
+              <div className="rounded-lg border border-border bg-secondary/50 px-4 py-2 text-xs text-muted-foreground">
+                <span className="font-medium">AI 엔진:</span>{' '}
+                {displayPost.aiResult.provider === 'google' ? 'Google Gemini' : 'Groq Llama'}
+                {displayPost.aiResult.model && ` (${displayPost.aiResult.model})`}
+              </div>
+            )}
+
             {/* AI 요약 */}
             {displayPost.aiResult.summary && (
               <Card>
@@ -572,6 +612,95 @@ export default function PostDetailPage({
                   <p className="text-sm text-card-foreground leading-relaxed">
                     {displayPost.aiResult.studyDirection}
                   </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 퀴즈 섹션 */}
+            {displayPost.aiResult.quiz && displayPost.aiResult.quiz.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3 px-4 pt-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                      <ListChecks className="h-4 w-4 text-primary" />
+                    </div>
+                    <CardTitle className="text-base font-semibold">복습 퀴즈</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 pt-0">
+                  <div className="space-y-4">
+                    {displayPost.aiResult.quiz.map((quizItem, index) => (
+                      <div key={index} className="space-y-2 rounded-lg border border-border bg-card p-3">
+                        <p className="text-sm font-medium text-card-foreground">
+                          {index + 1}. {quizItem.question}
+                        </p>
+                        <div className="space-y-1.5 pl-4">
+                          {quizItem.choices.map((choice, choiceIndex) => (
+                            <div
+                              key={choiceIndex}
+                              className={`text-xs rounded px-2 py-1 ${
+                                choiceIndex === quizItem.answerIndex
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'text-muted-foreground'
+                              }`}
+                            >
+                              {String.fromCharCode(65 + choiceIndex)}. {choice}
+                              {choiceIndex === quizItem.answerIndex && (
+                                <span className="ml-2 text-xs">✓ 정답</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {quizItem.explanation && (
+                          <p className="text-xs text-muted-foreground pl-4 pt-1 border-t border-border">
+                            💡 {quizItem.explanation}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 타임라인 섹션 */}
+            {displayPost.aiResult.timeline && displayPost.aiResult.timeline.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3 px-4 pt-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                      <FileText className="h-4 w-4 text-primary" />
+                    </div>
+                    <CardTitle className="text-base font-semibold">학습 타임라인</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 pt-0">
+                  <div className="space-y-3">
+                    {displayPost.aiResult.timeline
+                      .sort((a, b) => a.order - b.order)
+                      .map((timelineItem, index) => (
+                        <div key={index} className="flex gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                              {timelineItem.order}
+                            </div>
+                            {index < displayPost.aiResult.timeline!.length - 1 && (
+                              <div className="h-full w-0.5 bg-border mt-1" />
+                            )}
+                          </div>
+                          <div className="flex-1 pb-4">
+                            <p className="text-sm font-medium text-card-foreground">
+                              {timelineItem.title}
+                            </p>
+                            {timelineItem.detail && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {timelineItem.detail}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </CardContent>
               </Card>
             )}

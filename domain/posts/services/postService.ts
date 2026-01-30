@@ -253,41 +253,73 @@ export async function getPost(
   try {
     const supabase = createClient()
 
-    // posts 테이블과 ai_results, post_attachments 테이블 LEFT JOIN
-    const { data, error } = await supabase
+    // posts 테이블 조회
+    const { data: postData, error: postError } = await supabase
       .from('posts')
-      .select(`
-        *,
-        ai_results (*),
-        post_attachments (*)
-      `)
+      .select('*')
       .eq('id', postId)
       .eq('user_id', userId)
       .single()
 
-    if (error) {
-      if (error.code === 'PGRST116') {
+    if (postError) {
+      if (postError.code === 'PGRST116') {
         // 레코드를 찾을 수 없음
         return { data: null, error: null }
       }
-      logError(error, 'getPost')
+      logError(postError, 'getPost')
       return {
         data: null,
-        error: new Error(getErrorMessage(error)),
+        error: new Error(getErrorMessage(postError)),
       }
     }
 
-    if (!data) {
+    if (!postData) {
       return { data: null, error: null }
     }
 
-    const postRow = data as PostRow & {
-      ai_results?: AIResultRow[]
-      post_attachments?: PostAttachmentRow[]
+    const postRow = postData as PostRow
+
+    // ai_results 별도 조회 (RLS 정책 문제 해결)
+    const { data: aiResultsData, error: aiResultsError } = await supabase
+      .from('ai_results')
+      .select('*')
+      .eq('post_id', postId)
+      .maybeSingle()
+
+    if (aiResultsError) {
+      console.warn('[getPost] ai_results 조회 에러 (무시하고 계속):', aiResultsError)
     }
 
-    const aiResultRow = postRow.ai_results?.[0] as AIResultRow | undefined
-    const attachments = postRow.post_attachments as PostAttachmentRow[] | undefined
+    // post_attachments 조회
+    const { data: attachmentsData, error: attachmentsError } = await supabase
+      .from('post_attachments')
+      .select('*')
+      .eq('post_id', postId)
+
+    if (attachmentsError) {
+      console.warn('[getPost] post_attachments 조회 에러 (무시하고 계속):', attachmentsError)
+    }
+
+    const aiResultRow = aiResultsData as AIResultRow | undefined
+    const attachments = attachmentsData as PostAttachmentRow[] | undefined
+
+    // 디버깅: AI 결과 조회 상태 로깅 (항상 출력)
+    console.log('[getPost] Post 조회 결과:', {
+      postId,
+      aiProcessed: postRow.ai_processed,
+      aiResultsQueryError: aiResultsError?.message,
+      aiResultsData: aiResultsData,
+      hasAiResult: !!aiResultRow,
+      aiResultRowData: aiResultRow ? {
+        id: aiResultRow.id,
+        post_id: aiResultRow.post_id,
+        summary: aiResultRow.summary?.substring(0, 50),
+        key_points: aiResultRow.key_points,
+        study_direction: aiResultRow.study_direction?.substring(0, 50),
+        provider: aiResultRow.provider,
+        model: aiResultRow.model,
+      } : null,
+    })
 
     const post = postRowToDomain(postRow, aiResultRow, attachments)
 

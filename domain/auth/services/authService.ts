@@ -82,17 +82,37 @@ export async function signInWithGoogle(
     // 실제 Supabase OAuth 로그인
     const supabase = createClient()
     const redirectTo = options?.redirectTo || '/posts'
+    
+    // 브라우저 환경 확인
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: new Error('OAuth 로그인은 브라우저 환경에서만 가능합니다.'),
+      }
+    }
+
     // Route group (auth)는 URL에 포함되지 않으므로 /callback이 실제 경로입니다
     const callbackUrl = `${window.location.origin}/callback?redirect=${encodeURIComponent(redirectTo)}`
+    
+    console.log('[signInWithGoogle] OAuth 시작:', {
+      callbackUrl,
+      redirectTo,
+      origin: window.location.origin,
+    })
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: callbackUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       },
     })
 
     if (error) {
+      console.error('[signInWithGoogle] OAuth 에러:', error)
       return {
         success: false,
         error: new Error(getOAuthErrorMessage(error)),
@@ -100,6 +120,11 @@ export async function signInWithGoogle(
     }
 
     // OAuth는 리다이렉트를 통해 처리되므로 여기서는 성공으로 간주
+    // data.url이 있으면 리다이렉트가 시작된 것
+    if (data?.url) {
+      console.log('[signInWithGoogle] OAuth 리다이렉트 URL:', data.url)
+    }
+
     return {
       success: true,
     }

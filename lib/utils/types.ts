@@ -109,6 +109,28 @@ export function postRowToDomain(
  * AI Result 변환 함수
  */
 export function aiResultRowToDomain(row: AIResultRow): AIResult {
+  // quiz 파싱
+  let quiz: AIResult['quiz'] = undefined
+  if (row.quiz) {
+    if (Array.isArray(row.quiz)) {
+      quiz = row.quiz as AIResult['quiz']
+    } else if (typeof row.quiz === 'object') {
+      // JSONB 객체인 경우 배열로 변환 시도
+      quiz = [row.quiz] as AIResult['quiz']
+    }
+  }
+
+  // timeline 파싱
+  let timeline: AIResult['timeline'] = undefined
+  if (row.timeline) {
+    if (Array.isArray(row.timeline)) {
+      timeline = row.timeline as AIResult['timeline']
+    } else if (typeof row.timeline === 'object') {
+      // JSONB 객체인 경우 배열로 변환 시도
+      timeline = [row.timeline] as AIResult['timeline']
+    }
+  }
+
   return {
     id: row.id,
     postId: row.post_id,
@@ -119,6 +141,10 @@ export function aiResultRowToDomain(row: AIResultRow): AIResult {
       ? [String(row.key_points)]
       : undefined,
     studyDirection: row.study_direction ?? undefined,
+    quiz,
+    timeline,
+    provider: (row.provider as 'google' | 'groq' | undefined) ?? undefined,
+    model: row.model ?? undefined,
     rawResponse: row.raw_response as Record<string, unknown> | undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),

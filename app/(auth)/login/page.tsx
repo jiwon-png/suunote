@@ -66,9 +66,11 @@ function LoginForm() {
     setError(null)
 
     try {
+      console.log('[LoginPage] Google 로그인 시작:', { redirectTo })
       const result = await signInWithGoogle({ redirectTo })
 
       if (!result.success) {
+        console.error('[LoginPage] 로그인 실패:', result.error)
         setError(
           result.error?.message ||
             '로그인 중 오류가 발생했습니다. 다시 시도해주세요.'
@@ -77,10 +79,17 @@ function LoginForm() {
       } else if (result.isMock) {
         // Mock 모드: 로그인 성공 후 명시적으로 리다이렉트
         // 사용자가 버튼을 클릭했을 때만 이동
+        console.log('[LoginPage] Mock 모드 로그인 성공')
         router.push(redirectTo)
+      } else {
+        // 실제 OAuth 성공 시 OAuth 리다이렉트가 발생하므로 여기서는 아무것도 하지 않음
+        // 하지만 리다이렉트가 발생하지 않으면 로딩 상태를 유지
+        console.log('[LoginPage] OAuth 리다이렉트 대기 중...')
+        // OAuth 리다이렉트는 자동으로 발생하므로 로딩 상태는 유지
+        // 만약 리다이렉트가 발생하지 않으면 사용자가 수동으로 페이지를 새로고침할 수 있음
       }
-      // 실제 OAuth 성공 시 OAuth 리다이렉트가 발생하므로 여기서는 아무것도 하지 않음
     } catch (err) {
+      console.error('[LoginPage] 로그인 중 예외:', err)
       setError(
         err instanceof Error
           ? err.message
