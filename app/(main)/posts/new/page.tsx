@@ -140,50 +140,33 @@ export default function NewPostPage() {
         return
       }
 
-      // Post 생성 후 실제로 조회 가능할 때까지 확인
-      // DB 트랜잭션이 완료되고 RLS 정책이 적용되기까지 시간이 필요할 수 있음
-      let retryCount = 0
-      const maxRetries = 5
-      let postVerified = false
-
-      while (retryCount < maxRetries && !postVerified) {
-        try {
-          // Post가 실제로 조회 가능한지 확인 (getPost 서비스 함수 사용)
-          const { getPost } = await import('@/domain/posts/services/postService')
-          const { data: verifiedPost, error: verifyError } = await getPost(post.id, user.id)
-          
-          if (!verifyError && verifiedPost) {
-            console.log('[New Post] Post 검증 성공:', { postId: post.id, retryCount })
-            postVerified = true
-            break
-          } else {
-            console.warn('[New Post] Post 조회 실패, 재시도...', { 
-              postId: post.id, 
-              retryCount, 
-              error: verifyError?.message 
-            })
-            retryCount++
-            // 지수 백오프: 100ms, 200ms, 400ms, 800ms, 1600ms
-            await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, retryCount - 1)))
-          }
-        } catch (verifyError) {
-          console.error('[New Post] Post 검증 중 예외:', verifyError)
-          retryCount++
-          await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, retryCount - 1)))
-        }
-      }
-
-      if (!postVerified) {
-        console.error('[New Post] Post 검증 실패, 하지만 리다이렉트 진행:', { postId: post.id })
-        // 검증 실패해도 리다이렉트는 진행 (Post는 생성되었을 가능성이 높음)
-      }
-
-      // 상세 페이지로 리다이렉트
+      // 로딩 해제 및 리다이렉트를 먼저 수행 (Vercel에서 getPost 검증 루프가 블로킹되지 않도록)
+      setIsSubmitting(false)
       router.push(`/posts/${post.id}`)
 
-      // AI 처리 옵션이 활성화된 경우 백그라운드에서 AI 파이프라인 실행
+      // 검증 + AI 파이프라인은 백그라운드에서 실행 (await 하지 않음)
+      void (async () => {
+        let retryCount = 0
+        const maxRetries = 5
+        while (retryCount < maxRetries) {
+          try {
+            const { getPost } = await import('@/domain/posts/services/postService')
+            const { data: verifiedPost, error: verifyError } = await getPost(post.id, user.id)
+            if (!verifyError && verifiedPost) {
+              console.log('[New Post] Post 검증 성공:', { postId: post.id, retryCount })
+              break
+            }
+            retryCount++
+            await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, retryCount - 1)))
+          } catch (verifyError) {
+            console.error('[New Post] Post 검증 중 예외:', verifyError)
+            retryCount++
+            await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, retryCount - 1)))
+          }
+        }
+      })()
+
       if (processWithAI) {
-        // 백그라운드에서 실행 (await 없이)
         fetch('/api/ai/pipeline', {
           method: 'POST',
           headers: {

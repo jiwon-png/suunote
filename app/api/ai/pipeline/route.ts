@@ -1,7 +1,7 @@
 /**
  * AI 파이프라인 API Route
  * POST /api/ai/pipeline
- * 
+ *
  * 입력:
  * {
  *   postId: string,
@@ -10,6 +10,7 @@
  *   content: string
  * }
  */
+export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
