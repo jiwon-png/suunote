@@ -2,8 +2,9 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Supabase 접속 불가 시 true → fetch 에러 방지 (접속 가능해지면 false로 변경)
-const SKIP_SUPABASE_IN_MIDDLEWARE = false;
+// Supabase 접속 불가/지연 시 true → Vercel Edge에서 auth.getUser() 블로킹 방지
+// Server Action 요청이 middleware에서 막히면 "처리 중" 무한 상태 발생
+const SKIP_SUPABASE_IN_MIDDLEWARE = true;
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
