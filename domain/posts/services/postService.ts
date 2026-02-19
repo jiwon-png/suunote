@@ -7,7 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { postRowToDomain, aiResultRowToDomain, domainToPostAttachmentInsert } from '@/lib/utils/types'
 import { getErrorMessage, logError } from '@/lib/utils/errors'
-import { uploadFile, deleteFiles } from '@/lib/supabase/storage'
+import { uploadFile, uploadFileWithClient, deleteFiles } from '@/lib/supabase/storage'
 import { getFileType } from '@/lib/utils/file'
 import type { Post, CreatePostData } from '@/domain/posts/types'
 import type { Database, Json } from '@/types/database'
@@ -348,23 +348,16 @@ export async function getPost(
 }
 
 /**
- * 새 Post를 생성합니다.
- * AI 처리 옵션이 활성화된 경우 AI 결과도 함께 저장합니다.
- * 
- * @param userId 사용자 ID
- * @param data Post 생성 데이터
- * @param processWithAI AI 처리 여부 (기본값: true)
- * @returns 생성된 Post (AI 결과 포함 가능)
+ * Supabase 클라이언트를 받아 Post 생성 (Server Action용)
+ * 첨부파일·AI 처리는 별도 호출 (서버에서 insert만 수행)
  */
-export async function createPost(
+export async function createPostWithClient(
+  supabase: SupabaseClient<Database>,
   userId: string,
-  data: CreatePostData,
-  processWithAI: boolean = true
+  data: Pick<CreatePostData, 'title' | 'content' | 'subjectId' | 'courseId'>,
+  attachments?: File[]
 ): Promise<{ data: Post | null; error: Error | null }> {
   try {
-    const supabase = createClient()
-
-    // posts 테이블에 INSERT
     const { data: insertedData, error: insertError } = await supabase
       .from('posts')
       .insert({
@@ -401,97 +394,37 @@ export async function createPost(
     }
 
     const postId = insertedData.id
-    let aiProcessed = false
 
-    // 파일 첨부 처리
-    if (data.attachments && data.attachments.length > 0) {
-      const uploadPromises = data.attachments.map(async (file) => {
-        // Storage 경로 생성: {userId}/{postId}/{fileName}
+    // 첨부파일 처리 (서버에서 uploadFileWithClient 사용)
+    if (attachments && attachments.length > 0) {
+      for (const file of attachments) {
         const storagePath = `${userId}/${postId}/${file.name}`
-        
-        // 파일 업로드
-        const { data: fileUrl, error: uploadError } = await uploadFile(
+        const { data: fileUrl, error: uploadError } = await uploadFileWithClient(
+          supabase,
           'post-attachments',
           storagePath,
           file
         )
-
-        if (uploadError || !fileUrl) {
-          logError(uploadError || new Error('파일 업로드 실패'), 'createPost - file upload')
-          return null
-        }
-
-        // 파일 타입 확인 (지원하지 않는 타입은 건너뛰기)
+        if (uploadError || !fileUrl) continue
         const fileType = getFileType(file.name)
-        if (fileType === 'other') {
-          logError(new Error(`지원하지 않는 파일 형식: ${file.name}`), 'createPost - unsupported file type')
-          return null
-        }
-
-        // post_attachments 테이블에 INSERT
+        if (fileType === 'other') continue
         const attachmentData = domainToPostAttachmentInsert(postId, {
           fileName: file.name,
           fileType,
           fileUrl,
           fileSize: file.size,
         })
-
-        const { error: attachmentError } = await supabase
-          .from('post_attachments')
-          .insert(attachmentData)
-
-        if (attachmentError) {
-          logError(attachmentError, 'createPost - attachment insert')
-          // 업로드된 파일 삭제 (선택사항)
-          return null
-        }
-
-        return { success: true }
-      })
-
-      // 모든 파일 업로드 완료 대기 (실패해도 Post 생성은 성공으로 처리)
-      await Promise.allSettled(uploadPromises)
-    }
-
-    // AI 처리 옵션이 활성화된 경우 AI 처리 수행
-    if (processWithAI) {
-      try {
-        const { processText } = await import('@/domain/ai/services/aiService')
-        const aiResult = await processText(data.content)
-
-        // ai_results 테이블에 INSERT
-        const { error: aiError } = await supabase
-          .from('ai_results')
-          .insert({
-            post_id: postId,
-            summary: aiResult.summary,
-            key_points: aiResult.keyPoints,
-            study_direction: aiResult.studyDirection,
-            raw_response: aiResult as unknown as Json, // JSONB로 저장
-          })
-
-        if (!aiError) {
-          aiProcessed = true
-
-          // posts 테이블의 ai_processed 플래그 업데이트
-          await supabase
-            .from('posts')
-            .update({ ai_processed: true })
-            .eq('id', postId)
-        }
-      } catch (aiError) {
-        // AI 처리 실패는 Post 생성 실패로 처리하지 않음
-        // Post는 생성되었지만 AI 결과는 없음
-        logError(aiError, 'createPost - AI processing')
+        await supabase.from('post_attachments').insert(attachmentData)
       }
     }
 
-    // 최종 Post 데이터 조회 (AI 결과 포함)
+    // 최종 Post 데이터 조회
     const { data: finalPostData, error: fetchError } = await supabase
       .from('posts')
       .select(`
         *,
-        ai_results (*)
+        ai_results (*),
+        post_attachments (*)
       `)
       .eq('id', postId)
       .single()
@@ -503,12 +436,14 @@ export async function createPost(
     }
 
     const postRow = finalPostData as PostRow & {
-      ai_results?: AIResultRow[]
+      ai_results?: AIResultRow | AIResultRow[] | null
       post_attachments?: PostAttachmentRow[]
     }
-    const aiResultRow = postRow.ai_results?.[0] as AIResultRow | undefined
-    const attachments = postRow.post_attachments as PostAttachmentRow[] | undefined
-    const post = postRowToDomain(postRow, aiResultRow, attachments)
+    const aiResultRow = Array.isArray(postRow.ai_results)
+      ? (postRow.ai_results[0] as AIResultRow | undefined)
+      : (postRow.ai_results as AIResultRow | undefined)
+    const attachmentRows = postRow.post_attachments as PostAttachmentRow[] | undefined
+    const post = postRowToDomain(postRow, aiResultRow, attachmentRows)
 
     return { data: post, error: null }
   } catch (error) {
@@ -659,6 +594,19 @@ export async function searchPosts(
     query: searchQuery,
     ...options,
   })
+}
+
+/**
+ * 클라이언트용 Post 생성 (createClient 사용, 하위 호환)
+ * 새 코드는 createPostAction(Server Action) 사용 권장
+ */
+export async function createPost(
+  userId: string,
+  data: CreatePostData,
+  _processWithAI?: boolean
+): Promise<{ data: Post | null; error: Error | null }> {
+  const supabase = createClient()
+  return createPostWithClient(supabase, userId, data, data.attachments)
 }
 
 // Legacy postService 객체 (하위 호환성)

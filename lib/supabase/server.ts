@@ -63,7 +63,11 @@ export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Production에서는 환경 변수가 없으면 Mock을 반환하지 않고 즉시 실패
+  // 오프라인 개발 모드: Supabase 접속 불가 시 Mock 사용 (fetch 에러 방지)
+  if (process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_OFFLINE_DEV === 'true') {
+    return createMockServerClient()
+  }
+
   if (!supabaseUrl || !supabaseAnonKey) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error(
@@ -82,7 +86,15 @@ export async function createClient() {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll()
+          const all = cookieStore.getAll()
+          // base64url에 '.' 포함 시 파싱 에러 발생 → 해당 쿠키 제외 (재로그인 유도)
+          return all.filter((c) => {
+            if (!c.name.startsWith('sb-')) return true
+            if (!c.value.startsWith('base64-')) return true
+            const afterPrefix = c.value.slice(7)
+            if (afterPrefix.includes('.')) return false // JWT 형식 등 잘못된 값
+            return true
+          })
         },
         setAll(
           cookiesToSet: {
@@ -106,26 +118,17 @@ export async function createClient() {
 }
 
 /**
- * Mock 모드인지 확인하는 헬퍼 함수
- * 
- * Production에서는 절대 Mock 모드가 활성화되지 않습니다.
- * Development에서만 NEXT_PUBLIC_MOCK_MODE=true일 때 Mock 모드가 활성화됩니다.
+ * Mock/오프라인 모드인지 확인하는 헬퍼 함수
+ *
+ * - Production: 항상 false
+ * - Development: NEXT_PUBLIC_MOCK_MODE=true 또는 NEXT_PUBLIC_OFFLINE_DEV=true 일 때 true
+ *   - OFFLINE_DEV: Supabase 접속 불가 시 로컬 개발용 (Mock 사용)
  */
 export function isMockMode(): boolean {
-  // Production에서는 항상 false 반환 (Mock 모드 비활성화)
-  if (process.env.NODE_ENV === 'production') {
-    return false
-  }
-
-  // Development에서도 NEXT_PUBLIC_MOCK_MODE가 명시적으로 'true'일 때만 Mock 모드 활성화
+  if (process.env.NODE_ENV === 'production') return false
+  if (process.env.NEXT_PUBLIC_OFFLINE_DEV === 'true') return true
   const mockModeEnabled = process.env.NEXT_PUBLIC_MOCK_MODE === 'true'
-  
-  // 환경 변수가 없고 Mock 모드가 명시적으로 활성화된 경우에만 true 반환
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  const hasEnvVars = supabaseUrl && supabaseAnonKey
-  
-  // Mock 모드가 명시적으로 활성화되었고 환경 변수가 없을 때만 true
+  const hasEnvVars = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
   return mockModeEnabled && !hasEnvVars
 }
 

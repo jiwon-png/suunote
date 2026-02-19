@@ -69,8 +69,13 @@ export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Production에서는 환경 변수가 없으면 Mock을 반환하지 않고 즉시 실패
-  // (클라이언트 번들에는 NEXT_PUBLIC_* 가 빌드 시점에 인라인되므로, Vercel 빌드 시 해당 변수가 없으면 undefined로 고정됨)
+  // 오프라인 개발 모드: Supabase 접속 불가 시 Mock 사용
+  if (process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_OFFLINE_DEV === 'true') {
+    const mockClient = createMockClient()
+    ;(mockClient as any)._isMock = true
+    return mockClient
+  }
+
   if (!supabaseUrl || !supabaseAnonKey) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error(

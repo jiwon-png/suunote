@@ -7,17 +7,19 @@ export default async function HomePage() {
     redirect('/login')
   }
 
-  // 서버에서 인증 상태 확인
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // 서버에서 인증 상태 확인 (쿠키 파싱/네트워크 실패 시 로그인 페이지로)
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-  // 로그인한 사용자는 /posts로, 비로그인 사용자는 /login으로 리다이렉트
-  // 실제 리다이렉트는 middleware에서 처리되지만, 이중 안전장치로 여기서도 처리
-  if (user) {
-    redirect('/posts')
-  } else {
+    if (user) {
+      redirect('/posts')
+    } else {
+      redirect('/login')
+    }
+  } catch {
     redirect('/login')
   }
 }

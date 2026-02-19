@@ -13,7 +13,7 @@ import FileAttachmentSection from "@/components/posts/FileAttachmentSection"
 import { useAuthContext } from "@/contexts/AuthContext"
 import { usePostsContext } from "@/contexts/PostsContext"
 import { useAppContext } from "@/contexts/AppContext"
-import { createPost } from "@/domain/posts/services/postService"
+import { createPostAction } from "@/app/(main)/posts/actions"
 import { validatePostTitle, validatePostContent } from "@/lib/utils/validation"
 import {
   Select,
@@ -22,8 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { CreatePostData } from "@/domain/posts/types"
-
 /**
  * /posts/new 페이지: 새 학습 글 작성 전용 페이지
  * 
@@ -93,23 +91,24 @@ export default function NewPostPage() {
     setIsSubmitting(true)
 
     try {
-      const postData: CreatePostData = {
-        title: title.trim(),
-        content: content.trim(),
-        subjectId: subjectId || undefined,
-        courseId: courseId || undefined,
-        attachments: attachments.length > 0 ? attachments : undefined,
-      }
+      // Post 생성 (Server Action → 서버에서 Supabase 호출, 무한 로딩 방지)
+      const formData = new FormData()
+      formData.append('userId', user.id)
+      formData.append('title', title.trim())
+      formData.append('content', content.trim())
+      if (subjectId) formData.append('subjectId', subjectId)
+      if (courseId) formData.append('courseId', courseId)
+      attachments.forEach((file) => formData.append('files', file))
 
-      // Post 생성 (AI 처리 없이)
-      const { data: post, error: createError } = await createPost(
-        user.id,
-        postData,
-        false // AI 처리는 별도 API로
-      )
+      const { data: post, error: createError } = await createPostAction(formData)
 
       if (createError) {
-        setError(createError.message || "학습 노트 생성에 실패했습니다.")
+        const msg = createError.message || "학습 노트 생성에 실패했습니다."
+        const friendlyMsg =
+          msg.toLowerCase().includes("failed to fetch") || msg.includes("fetch failed")
+            ? "네트워크 연결을 확인해주세요. Supabase 서버에 연결할 수 없습니다."
+            : msg
+        setError(friendlyMsg)
         setIsSubmitting(false)
         return
       }

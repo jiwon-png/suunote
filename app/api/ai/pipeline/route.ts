@@ -11,9 +11,12 @@
  * }
  */
 export const runtime = 'nodejs'
+// Vercel: AI 호출(Google/Groq)에 10초 이상 소요 → 기본 10초 타임아웃 방지
+export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { callAIPipeline, type ProviderMode } from '@/lib/ai/providers'
 import type { AIPipelineResponse } from '@/domain/ai/types'
 import type { Database, Json } from '@/types/database'
@@ -53,44 +56,52 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if ((providerMode === 'groq' || providerMode === 'auto') && !process.env.GROQ_API_KEY) {
+    const groqKey = process.env.GROQ_API_KEY?.trim()
+    if ((providerMode === 'groq' || providerMode === 'auto') && !groqKey) {
       return NextResponse.json(
         { error: 'GROQ_API_KEY 환경 변수가 설정되지 않았습니다. (groq/auto 모드 사용 시 필요)' },
         { status: 500 }
       )
     }
 
-    // 3. Supabase 클라이언트 생성 및 사용자 확인
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+    // 3. Supabase: auth 있으면 server, 없으면 admin(RLS 우회) 사용
+    let supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    let userId: string | null = user?.id || null
 
-    // user_id는 nullable (비로그인 mock 환경 고려)
-    const userId = user?.id || null
+    // 4. Post 존재 확인 (RLS로 차단될 수 있으므로 실패 시 admin으로 재시도)
+    let postRow: { id: string; user_id: string } | null = null
+    const { data: serverPost, error: serverPostError } = await supabase
+      .from('posts')
+      .select('id, user_id')
+      .eq('id', postId)
+      .single()
 
-    // 4. Post 존재 확인 (RLS로 자동 검증)
-    if (userId) {
-      const { data: post, error: postError } = await supabase
-        .from('posts')
-        .select('id, user_id')
-        .eq('id', postId)
-        .single()
-
-      if (postError || !post) {
-        return NextResponse.json(
-          { error: 'Post를 찾을 수 없습니다.' },
-          { status: 404 }
-        )
+    if (!serverPostError && serverPost) {
+      postRow = serverPost
+      if (userId && postRow.user_id !== userId) {
+        return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
       }
+      if (!userId) userId = postRow.user_id
+    }
 
-      // RLS로 이미 검증되지만 추가 확인
-      if (post.user_id !== userId) {
-        return NextResponse.json(
-          { error: '권한이 없습니다.' },
-          { status: 403 }
-        )
+    if (!postRow) {
+      try {
+        const admin = createAdminClient()
+        const { data: adminPost, error: adminErr } = await admin
+          .from('posts')
+          .select('id, user_id')
+          .eq('id', postId)
+          .single()
+
+        if (adminErr || !adminPost) {
+          return NextResponse.json({ error: 'Post를 찾을 수 없습니다.' }, { status: 404 })
+        }
+        postRow = adminPost
+        userId = adminPost.user_id
+        supabase = admin
+      } catch {
+        return NextResponse.json({ error: 'Post를 찾을 수 없습니다.' }, { status: 404 })
       }
     }
 

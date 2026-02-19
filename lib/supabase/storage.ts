@@ -3,8 +3,43 @@
  * 파일 업로드, 다운로드, 삭제 기능 제공
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { getErrorMessage, logError } from '@/lib/utils/errors'
+
+/**
+ * Supabase 클라이언트를 받아 파일 업로드 (Server Action 등 서버 측에서 사용)
+ */
+export async function uploadFileWithClient(
+  supabase: SupabaseClient,
+  bucket: string,
+  path: string,
+  file: Blob | File,
+  fileName?: string
+): Promise<{ data: string | null; error: Error | null }> {
+  try {
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+      })
+
+    if (uploadError) {
+      logError(uploadError, 'uploadFileWithClient')
+      return { data: null, error: new Error(getErrorMessage(uploadError)) }
+    }
+
+    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
+    if (!urlData?.publicUrl) {
+      return { data: null, error: new Error('파일 URL을 생성할 수 없습니다.') }
+    }
+    return { data: urlData.publicUrl, error: null }
+  } catch (error) {
+    logError(error, 'uploadFileWithClient')
+    return { data: null, error: new Error(getErrorMessage(error)) }
+  }
+}
 
 /**
  * 파일 업로드

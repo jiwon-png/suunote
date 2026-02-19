@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, use, useEffect } from "react"
+import { useState, use, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -76,6 +76,50 @@ export default function PostDetailPage({
   const [isUpdating, setIsUpdating] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isTriggeringAI, setIsTriggeringAI] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const aiTriggeredRef = useRef(false)
+
+  // ai_processed가 false일 때 상세 페이지에서 직접 AI 파이프라인 호출 (새 글 페이지 fetch 실패/취소 대비)
+  useEffect(() => {
+    if (!post?.id || !post?.content || post.aiProcessed || aiTriggeredRef.current || isTriggeringAI) return
+
+    aiTriggeredRef.current = true
+    setIsTriggeringAI(true)
+    setAiError(null)
+
+    fetch('/api/ai/pipeline', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        postId: post.id,
+        providerMode: 'auto',
+        category: 'pipeline',
+        content: post.content,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}))
+        if (res.ok) {
+          if (data?.dbSaveError) {
+            setAiError(data.dbSaveError)
+            aiTriggeredRef.current = false
+          }
+          refetch()
+        } else {
+          const msg = data?.error || data?.details || (res.status === 504 ? '처리 시간이 초과되었습니다. 다시 시도해 주세요.' : `HTTP ${res.status}`)
+          setAiError(msg)
+          aiTriggeredRef.current = false
+        }
+      })
+      .catch((err) => {
+        const msg = err?.message?.includes('fetch') ? '네트워크 연결을 확인해주세요.' : (err?.message || 'AI 처리 중 오류')
+        setAiError(msg)
+        aiTriggeredRef.current = false
+      })
+      .finally(() => setIsTriggeringAI(false))
+  }, [post?.id, post?.content, post?.aiProcessed, isTriggeringAI, refetch])
 
   // AI 처리 중일 때 주기적으로 refetch (polling)
   useEffect(() => {
@@ -714,10 +758,50 @@ export default function PostDetailPage({
         {/* AI 처리 중 상태 */}
         {!displayPost.aiProcessed && (
           <Card className="border-dashed">
-            <CardContent className="py-6 px-4 text-center">
+            <CardContent className="py-6 px-4 text-center space-y-3">
               <p className="text-sm text-muted-foreground">
                 AI 처리가 진행 중입니다. 잠시만 기다려주세요.
               </p>
+              {aiError && (
+                <p className="text-sm text-destructive">{aiError}</p>
+              )}
+              {!isTriggeringAI && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    aiTriggeredRef.current = false
+                    setAiError(null)
+                    setIsTriggeringAI(true)
+                    fetch('/api/ai/pipeline', {
+                      method: 'POST',
+                      credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        postId: displayPost.id,
+                        providerMode: 'auto',
+                        category: 'pipeline',
+                        content: displayPost.content,
+                      }),
+                    })
+                      .then(async (res) => {
+                        const data = await res.json().catch(() => ({}))
+                        if (res.ok) refetch()
+                        else {
+                          setAiError(data?.error || data?.details || `HTTP ${res.status}`)
+                          aiTriggeredRef.current = false
+                        }
+                      })
+                      .catch((err) => {
+                        setAiError(err?.message?.includes('fetch') ? '네트워크 연결을 확인해주세요.' : err?.message)
+                        aiTriggeredRef.current = false
+                      })
+                      .finally(() => setIsTriggeringAI(false))
+                  }}
+                >
+                  AI 처리 다시 시도
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
