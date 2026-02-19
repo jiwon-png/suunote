@@ -100,7 +100,21 @@ export default function NewPostPage() {
       if (courseId) formData.append('courseId', courseId)
       attachments.forEach((file) => formData.append('files', file))
 
-      const { data: post, error: createError } = await createPostAction(formData)
+      // 25초 타임아웃: Vercel/네트워크 지연 시 무한 대기 방지
+      const timeoutMs = 25000
+      const createPromise = createPostAction(formData)
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('처리 시간이 초과되었습니다. 다시 시도해 주세요.')), timeoutMs)
+      )
+      let post: Awaited<ReturnType<typeof createPostAction>>['data'] = null
+      let createError: Awaited<ReturnType<typeof createPostAction>>['error'] = null
+      try {
+        const result = await Promise.race([createPromise, timeoutPromise])
+        post = result.data
+        createError = result.error
+      } catch (err) {
+        createError = err instanceof Error ? err : new Error('처리 중 오류가 발생했습니다.')
+      }
 
       if (createError) {
         const msg = createError.message || "학습 노트 생성에 실패했습니다."

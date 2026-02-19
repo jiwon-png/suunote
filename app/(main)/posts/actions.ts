@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getPostsPaginatedWithClient,
   createPostWithClient,
@@ -11,13 +12,14 @@ import type { PaginatedResponse } from '@/types/api'
 
 /**
  * Server Action: Post 생성 (서버에서 Supabase 호출 → 무한 로딩 방지)
- * FormData 또는 (userId, data) 형태로 호출 가능
+ * Admin 클라이언트 사용: Vercel에서 쿠키 기반 server client가 응답 지연/실패할 수 있어
+ * RLS 우회로 안정적 연결 보장
  */
 export async function createPostAction(
   formDataOrUserId: FormData | string,
   data?: { title: string; content: string; subjectId?: string; courseId?: string }
 ): Promise<{ data: Post | null; error: Error | null }> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   let userId: string
   let postData: { title: string; content: string; subjectId?: string; courseId?: string }
   let attachments: File[] = []
